@@ -49,10 +49,24 @@ from diffusers.training_utils import EMAModel , compute_snr
 from diffusers.utils import check_min_version, deprecate, is_wandb_available, make_image_grid
 from diffusers.utils.import_utils import is_xformers_available
 from PIL import Image
-# if is_wandb_available():
-#     print('WANDB HERE')
+
+
+# import subprocess
+# import sys
+
+# def install_package(package):
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+import subprocess
 import sys
-sys.path.insert(0, '/home/vfourel/.local/lib/python3.10/site-packages')
+
+# def install_package(package):
+#     subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", package])
+
+# # Use this to install wandb
+# install_package("wandb")
+# # Example usage to install `wandb`
+# #install_package("wandb")
 
 import wandb
 # wandb.init(project="StableFace")
