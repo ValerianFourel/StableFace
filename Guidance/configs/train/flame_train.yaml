@@ -1,0 +1,56 @@
+input_perturbation: 0.1
+pretrained_model_name_or_path: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
+revision: null
+dataset_name: null
+dataset_config_name: null
+train_data_dir: null
+image_column: "image"
+caption_column: "text"
+max_train_samples: null
+validation_prompts: null
+output_dir: "/ps/scratch/ps_shared/vfourel/StableFace/sd-model-finetuned-l1-snr05-lr07"
+cache_dir: null
+seed: null
+resolution: 512
+center_crop: false
+random_flip: false
+train_batch_size: 4
+num_train_epochs: 1000
+max_train_steps: null
+gradient_accumulation_steps: 4
+gradient_checkpointing: false
+learning_rate: 5e-7
+scale_lr: false
+lr_scheduler: "constant"
+lr_warmup_steps: 5
+snr_gamma: 1.0
+use_8bit_adam: false
+allow_tf32: false
+use_ema: false
+non_ema_revision: null
+dataloader_num_workers: 2
+adam_beta1: 0.9
+adam_beta2: 0.999
+adam_weight_decay: 1e-2
+adam_epsilon: 1e-8
+max_grad_norm: 1.0
+push_to_hub: false
+hub_token: null
+prediction_type: null
+hub_model_id: null
+logging_dir: "logs"
+mixed_precision: null
+report_to: "tensorboard"
+local_rank: -1
+checkpointing_steps: 5
+checkpoints_total_limit: null
+resume_from_checkpoint: null
+enable_xformers_memory_efficient_attention: false
+noise_offset: 0
+validation_epochs: 5
+tracker_project_name: "text2image-fine-tune"
+
+guidance_encoder_kwargs:
+  guidance_embedding_channels: 320
+  guidance_input_channels: 3
+  block_out_channels: [16, 32, 96, 256]
