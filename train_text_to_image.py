@@ -69,7 +69,7 @@ import sys
 # #install_package("wandb")
 
 import wandb
-# wandb.init(project="StableFace")
+wandb.init(project="StableFace")
 import json
 # run = wandb.init(project="StableFace", entity="valerian-fourel")
 
@@ -77,7 +77,7 @@ import json
 model_id = "SG161222/Realistic_Vision_V6.0_B1_noVAE"
 #annotation_file = '/home/vfourel/FaceGPT/Data/LLaVAAnnotations/StableDiffusionPrompts/prompt_response_conversation_All_data.json'
 
-annotation_file = '/home/vfourel/FaceGPT/Data/LLaVAAnnotations/StableDiffusionPrompts/tmpPromptsAll.json'
+annotation_file = '/home/vfourel/FaceGPT/Data/LLaVAAnnotations/StableDiffusionPrompts/PromptsSmall07_41ksamples.json'
 
 
 # Define your dataset class
@@ -86,7 +86,7 @@ class CustomDataset(Dataset):
         with open(annotation_file, 'r') as f:
             self.annotations = json.load(f)
         self.transform = transform
-        self.image_paths = list(self.annotations.keys())
+        self.image_paths = list(self.annotations.keys())#[:1000]
         self.tokenizer = tokenizer
 
     def __len__(self):
@@ -318,7 +318,7 @@ def parse_args():
     parser.add_argument(
         "--output_dir",
         type=str,
-        default="sd-model-finetuned",
+        default= '/ps/scratch/ps_shared/vfourel/StableFace/sd-model-finetuned-l1-snr05-lr07',# "sd-model-finetuned",
         help="The output directory where the model predictions and checkpoints will be written.",
     )
     parser.add_argument(
@@ -354,7 +354,7 @@ def parse_args():
     parser.add_argument(
         "--train_batch_size", type=int, default=4, help="Batch size (per device) for the training dataloader."
     )
-    parser.add_argument("--num_train_epochs", type=int, default=10)
+    parser.add_argument("--num_train_epochs", type=int, default=1000)
     parser.add_argument(
         "--max_train_steps",
         type=int,
@@ -364,7 +364,7 @@ def parse_args():
     parser.add_argument(
         "--gradient_accumulation_steps",
         type=int,
-        default=1,
+        default=4,
         help="Number of updates steps to accumulate before performing a backward/update pass.",
     )
     parser.add_argument(
@@ -375,13 +375,13 @@ def parse_args():
     parser.add_argument(
         "--learning_rate",
         type=float,
-        default=1e-4,
+        default=5e-7, # first one is 1e-4 but is probably too high
         help="Initial learning rate (after the potential warmup period) to use.",
     )
     parser.add_argument(
         "--scale_lr",
         action="store_true",
-        default=False,
+        default=False, # noramlly false
         help="Scale the learning rate by the number of GPUs, gradient accumulation steps, and batch size.",
     )
     parser.add_argument(
@@ -393,13 +393,13 @@ def parse_args():
             ' "constant", "constant_with_warmup"]'
         ),
     )
-    parser.add_argument(
-        "--lr_warmup_steps", type=int, default=500, help="Number of steps for the warmup in the lr scheduler."
+    parser.add_argument( # norammly it'S 500
+        "--lr_warmup_steps", type=int, default=5, help="Number of steps for the warmup in the lr scheduler."
     )
     parser.add_argument(
         "--snr_gamma",
         type=float,
-        default=None,
+        default=1.0, #None for starters
         help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. "
         "More details here: https://arxiv.org/abs/2303.09556.",
     )
@@ -485,7 +485,7 @@ def parse_args():
     parser.add_argument(
         "--checkpointing_steps",
         type=int,
-        default=500,
+        default=5,
         help=(
             "Save a checkpoint of the training state every X updates. These checkpoints are only suitable for resuming"
             " training using `--resume_from_checkpoint`."
@@ -632,10 +632,27 @@ def main():
         args.pretrained_model_name_or_path, subfolder="unet", revision=args.non_ema_revision,# addition_embed_type="text_image",
     )
 
+
+#### Take this into Account 
+# set to true
     # Freeze vae and text_encoder and set unet to trainable
+    # this is the original
     vae.requires_grad_(False)
+
+    ##### to be modified #####
+
+    # experiment #1 
+    # vae.requires_grad_(True)
+    # vae.train()
+
+
+    #############################
     text_encoder.requires_grad_(False)
     unet.train()
+
+
+
+
 
     # Create EMA for the unet.
     if args.use_ema:
@@ -754,6 +771,7 @@ def main():
         collate_fn=collate_fn,
         batch_size=args.train_batch_size,
         num_workers=args.dataloader_num_workers,
+        drop_last=True # for smoother training
     )
 
     # Scheduler and math around the number of training steps.
@@ -775,6 +793,24 @@ def main():
         unet, optimizer, train_dataloader, lr_scheduler
     )
 
+    ##################################
+    #
+    # We remove the last batch to keep a smooth training function
+    #
+
+    # # Determine the total number of batches
+    # total_batches = len(train_dataloader)
+
+    # # Create a new dataloader without the last batch
+    # train_dataloader = itertools.islice(train_dataloader, total_batches - 1)
+
+    # # If needed, wrap the iterator back to a DataLoader
+    # train_dataloader = DataLoader(list(train_dataloader), batch_size=train_dataloader.batch_size, shuffle=train_dataloader.shuffle)
+
+
+
+
+    #######################################################
     if args.use_ema:
         ema_unet.to(accelerator.device)
 
@@ -864,8 +900,14 @@ def main():
 
     for epoch in range(first_epoch, args.num_train_epochs):
         train_loss = 0.0
+                # Determine the total number of batches
+        total_batches = len(train_dataloader)
+    # We remove the last batch to keep a smooth training function
 
         for step, batch in enumerate(train_dataloader):
+            if step == total_batches - 1:
+                break
+
             with accelerator.accumulate(unet):
                 # Convert images to latent space
                 latents = vae.encode(batch["pixel_values"].to(weight_dtype)).latent_dist.sample()
@@ -926,8 +968,26 @@ def main():
                 # Predict the noise residual and compute loss
                 model_pred = unet(noisy_latents, timesteps, encoder_hidden_states,added_cond_kwargs = added_cond_kwargs).sample
 
+                # if args.snr_gamma is None:
+                #     loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                # else:
+                #     # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
+                #     # Since we predict the noise instead of x_0, the original formulation is slightly changed.
+                #     # This is discussed in Section 4.2 of the same paper.
+                #     snr = compute_snr(noise_scheduler, timesteps)
+                #     if noise_scheduler.config.prediction_type == "v_prediction":
+                #         # Velocity objective requires that we add one to SNR values before we divide by them.
+                #         snr = snr + 1
+                #     mse_loss_weights = (
+                #         torch.stack([snr, args.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
+                #     )
+
+                #     loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
+                #     loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                #     loss = loss.mean()
+
                 if args.snr_gamma is None:
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                    loss = F.l1_loss(model_pred.float(), target.float(), reduction="mean")
                 else:
                     # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
                     # Since we predict the noise instead of x_0, the original formulation is slightly changed.
@@ -936,22 +996,24 @@ def main():
                     if noise_scheduler.config.prediction_type == "v_prediction":
                         # Velocity objective requires that we add one to SNR values before we divide by them.
                         snr = snr + 1
-                    mse_loss_weights = (
+                    l1_loss_weights = (
                         torch.stack([snr, args.snr_gamma * torch.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
                     )
 
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="none")
-                    loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
+                    loss = F.l1_loss(model_pred.float(), target.float(), reduction="none")
+                    loss = loss.mean(dim=list(range(1, len(loss.shape)))) * l1_loss_weights
                     loss = loss.mean()
-
                 # Gather the losses across all processes for logging (if we use distributed training).
                 avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
                 train_loss += avg_loss.item() / args.gradient_accumulation_steps
 
                 # Backpropagate
+                # loss.backward()
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     accelerator.clip_grad_norm_(unet.parameters(), args.max_grad_norm)
+                    accelerator.clip_grad_norm_(vae.parameters(), args.max_grad_norm)
+
                 optimizer.step()
                 lr_scheduler.step()
                 optimizer.zero_grad()
@@ -962,7 +1024,7 @@ def main():
                     ema_unet.step(unet.parameters())
                 progress_bar.update(1)
                 global_step += 1
-                accelerator.log({"train_loss": train_loss}, step=global_step)
+                accelerator.log({"train_loss": train_loss,"loss": loss, "learning_rate": lr_scheduler.get_last_lr()}, step=global_step)
                 train_loss = 0.0
 
                 if global_step % args.checkpointing_steps == 0:
@@ -1027,7 +1089,7 @@ def main():
 
         pipeline = StableDiffusionPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
-            text_encoder=text_encoder,
+            text_encoder=text_encoder, # we have to 
             vae=vae,
             unet=unet,
             revision=args.revision,
