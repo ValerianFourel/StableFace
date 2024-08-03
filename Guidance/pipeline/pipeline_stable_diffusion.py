@@ -37,8 +37,11 @@ from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+###########################
+#
+# VF
 from models.guidance_encoder import GuidanceEncoder
-
+import numpy as np
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -181,8 +184,9 @@ class StableDiffusionPipeline(
         vae: AutoencoderKL,
         text_encoder: CLIPTextModel,
         tokenizer: CLIPTokenizer,
-        unet: UNet2DConditionModel,
         #####################
+
+        unet: UNet2DConditionModel,
         # Modification by Valerian
         guidance_encoder_flame: GuidanceEncoder,
         # how to make a guidance encoder
@@ -268,6 +272,10 @@ class StableDiffusionPipeline(
             safety_checker=safety_checker,
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
+            ###############################################
+            #
+            # Valerian FOUREL 
+            guidance_encoder_flame = guidance_encoder_flame,
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
@@ -755,6 +763,12 @@ class StableDiffusionPipeline(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
+        ###########################
+        #
+        # Added by Valerian FOUREL
+        multi_guidance_lst,
+        guidance_types: List[str] = ['flame'],
+        ###########################
         prompt: Union[str, List[str]] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
@@ -990,6 +1004,25 @@ class StableDiffusionPipeline(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(device=device, dtype=latents.dtype)
 
+    #######################################################################
+    #
+    # Valerian FOUREL Modifcations
+    #
+        do_classifier_free_guidance = self.guidance_scale > 1.0
+        guidance_fea_lst = []
+        for guid_idx, guidance_image in enumerate(multi_guidance_lst):
+            guidance_tensor = torch.from_numpy(np.array(guidance_image.resize((width, height)))) / 255.
+            guidance_tensor = guidance_tensor.permute(2, 0, 1).unsqueeze(0).unsqueeze(2)  # (1, c, 1, h, w)
+            
+            guidance_type = guidance_types[guid_idx]
+            guidance_encoder = getattr(self, f"guidance_encoder_{guidance_type}")
+            guidance_tensor = guidance_tensor.to(device, guidance_encoder.dtype)
+            guidance_fea_lst += [guidance_encoder(guidance_tensor)]
+            
+        guidance_fea = torch.stack(guidance_fea_lst, dim=0).sum(0)
+        guidance_fea = torch.cat([guidance_fea] * 2) if do_classifier_free_guidance else guidance_fea
+    #######################################################################
+
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
@@ -999,6 +1032,7 @@ class StableDiffusionPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
+                # VF check the line 296 of pipeline from champ
                 latent_model_input = torch.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
@@ -1010,6 +1044,11 @@ class StableDiffusionPipeline(
                     timestep_cond=timestep_cond,
                     cross_attention_kwargs=self.cross_attention_kwargs,
                     added_cond_kwargs=added_cond_kwargs,
+                    #####################################
+                    #
+                    # Valerian FOUREL modifications
+                    guidance_fea=guidance_fea,
+                    #####################################
                     return_dict=False,
                 )[0]
 

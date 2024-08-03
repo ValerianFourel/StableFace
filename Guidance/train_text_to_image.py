@@ -44,7 +44,12 @@ from torch.utils.data import DataLoader, Dataset
 from omegaconf import OmegaConf
 
 import diffusers
-from diffusers import AutoencoderKL, DDPMScheduler, UNet2DConditionModel
+from diffusers import AutoencoderKL, DDPMScheduler
+###########################
+#
+# Valerian FOUREL
+from models.unet_2d_condition import UNet2DConditionModel
+###########################
 from diffusers.optimization import get_scheduler
 from diffusers.training_utils import EMAModel , compute_snr
 from diffusers.utils import check_min_version, deprecate, is_wandb_available, make_image_grid
