@@ -1,0 +1,28 @@
+# Ignore Python bytecode files
+__pycache__/
+*.pyc
+
+# Specifically ignore the files you mentioned
+models/__pycache__/attention.cpython-310.pyc
+models/__pycache__/guidance_encoder.cpython-310.pyc
+models/__pycache__/motion_module.cpython-310.pyc
+models/__pycache__/resnet.cpython-310.pyc
+models/__pycache__/transformer_3d.cpython-310.pyc
+models/__pycache__/unet_2d_condition.cpython-310.pyc
+# Ignore the wandb folder and all its contents
+wandb/
+output/
+output_1024persteps/
+baseFilesStableDiffusion/
+# Optionally, you might want to ignore wandb files in any subdirectory
+**/wandb/
+validation/
+# If you want to ignore only specific files within wandb folders, you can use:
+# wandb/**/*.log
+# wandb/**/*.yaml
+# wandb/**/events.out.tfevents.*
+**/*sd-model*/
+
+# Ignore OldTemp and Temp folders
+OldTemp/
+Temp/

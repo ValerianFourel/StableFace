@@ -1,0 +1,12 @@
+
+We need the EmonetLoader and the EmonetLoss:
+https://github.com/radekd91/emoca/blob/c1cf7e450ec1dc23a43ff9b3b0f60097d4037c20/gdl/layers/losses/EmoNetLoss.py
+https://github.com/radekd91/emoca/blob/c1cf7e450ec1dc23a43ff9b3b0f60097d4037c20/gdl/layers/losses/EmonetLoader.py
+
+We need a version of Emonet that returns a value for the 8 expressions
+
+This is hte Fork that Radek used:
+https://github.com/radekd91/emonet/tree/57ac8e9fc659994b9f737351723abcf6a24153a4
+This is the one you want:
+https://github.com/radekd91/emonet/blob/57ac8e9fc659994b9f737351723abcf6a24153a4/pretrained/emonet_8.pth
+

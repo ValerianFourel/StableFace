@@ -1,0 +1,96 @@
+input_perturbation: 0.1
+pretrained_model_name_or_path: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
+base_model_path:  "SG161222/Realistic_Vision_V6.0_B1_noVAE"
+image_encoder_path: "/home/vfourel/.cache/huggingface/hub/models--SG161222--RealVisXL_V4.0/image_encoder" # "SG161222/RealVisXL_V4.0/image_encoder"
+revision: null
+dataset_name: null
+dataset_config_name: null
+train_data_dir: null
+image_column: "image"
+caption_column: "text"
+max_train_samples: null
+validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
+validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
+output_dir: "/ps/scratch/ps_shared/vfourel/ChampFace/sd-model-finetuned-l1-snr60-lr06-1024pics" #sd-model-finetuned-l1-snr10-lr05 is the last one
+cache_dir: null
+seed: null
+resolution: 512
+center_crop: false
+random_flip: false
+train_batch_size: 8
+num_train_epochs: 100
+max_train_steps: null
+gradient_accumulation_steps: 32
+gradient_checkpointing: false
+learning_rate: 1e-6
+scale_lr: false
+lr_scheduler: "polynomial"
+lr_warmup_steps: 10
+snr_gamma: 6.0
+use_8bit_adam: false
+allow_tf32: false
+use_ema: false
+non_ema_revision: null
+dataloader_num_workers: 4
+adam_beta1: 0.9
+adam_beta2: 0.999
+adam_weight_decay: 1e-2
+adam_epsilon: 1e-8
+max_grad_norm: 1.0
+push_to_hub: false
+hub_token: null
+prediction_type: null
+hub_model_id: null
+logging_dir: "logs"
+mixed_precision: null
+report_to: "tensorboard"
+local_rank: -1
+checkpointing_steps: 32
+checkpoints_total_limit: null
+resume_from_checkpoint: null
+enable_xformers_memory_efficient_attention: false
+noise_offset: 0
+validation_epochs: 5
+tracker_project_name: "text2image-fine-tune"
+
+guidance_encoder_kwargs:
+  guidance_embedding_channels: 320
+  guidance_input_channels: 3
+  block_out_channels: [16, 32, 96, 256]
+
+
+#################################
+# Added by VF
+#
+data:
+  train_bs: 8
+  image_json_path: '/ps/scratch/ps_shared/vfourel/affectnet_41k_AffectOnly/EmocaProcessed_38k/Corpus_38k_train_split.json' # Your data root folder
+  guids: 
+    - 'flame'
+  image_size: 512
+  bbox_crop: False
+  bbox_resize_ratio: [0.9, 1.5]
+  aug_type: "Resize"
+  data_parts:
+    - "all"
+  sample_margin: 30
+
+solver:
+  gradient_accumulation_steps: 1
+  mixed_precision: 'fp16'
+  enable_xformers_memory_efficient_attention: True 
+  gradient_checkpointing: False 
+  max_train_steps: 100000  # 50000
+  max_grad_norm: 1.0
+  # lr
+  learning_rate: 1.0e-5
+  scale_lr: False 
+  lr_warmup_steps: 1
+  lr_scheduler: 'linear'
+
+  # optimizer
+  use_8bit_adam: False 
+  adam_beta1: 0.9
+  adam_beta2: 0.999
+  adam_weight_decay:  1.0e-2
+  adam_epsilon: 1.0e-8

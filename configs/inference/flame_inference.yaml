@@ -1,0 +1,15 @@
+pretrained_model_name_or_path: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
+finetuned_model: "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res/checkpoint-144"
+revision: null
+seed: null
+
+validation_dict: "/ps/scratch/ps_shared/vfourel/affectnet_41k_AffectOnly/EmocaProcessed_38k/Corpus_300_validation.json"
+
+guidance_encoder_kwargs:
+  guidance_embedding_channels: 320
+  guidance_input_channels: 3
+  block_out_channels: [16, 32, 96, 256]
+
+data:
+  guids: 
+    - 'flame'
