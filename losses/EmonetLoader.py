@@ -1,7 +1,7 @@
 import inspect
 import sys
 from pathlib import Path
-from gdl.utils.other import get_path_to_externals
+from .other import get_path_to_externals
 import torch
 
 
@@ -12,13 +12,13 @@ def get_emonet(device=None, load_pretrained=True):
         # print(f"Adding EmoNet path '{path_to_emonet}'")
         sys.path += [str(path_to_emonet)]
 
-    from emonet.models import EmoNet
+    from external.emonet.emonet.models import EmoNet
     # n_expression = 5
     n_expression = 8
 
     # Create the model
     net = EmoNet(n_expression=n_expression).to(device)
-
+    # print("DDDDDDDDDDDDDDDDDD      \n  ",net)
     # if load_pretrained:
     state_dict_path = Path(
         inspect.getfile(EmoNet)).parent.parent.parent / 'pretrained' / f'emonet_{n_expression}.pth'
@@ -31,4 +31,5 @@ def get_emonet(device=None, load_pretrained=True):
         net.reset_emo_parameters()
 
     net.eval()
+    print('Ellllllllll')
     return net

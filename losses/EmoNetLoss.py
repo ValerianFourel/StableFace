@@ -2,60 +2,22 @@ import copy
 
 import omegaconf
 import torch
-from gdl.layers.losses.EmonetLoader import get_emonet
 from pathlib import Path
 import torch.nn.functional as F
-try:
-    from gdl.models.EmoNetModule import EmoNetModule
-except ImportError as e:
-    print(f"Could not import EmoNetModule. EmoNet models will not be available. Make sure you pull the repository with submodules to enable EmoNet.")
+
+from .EmoNetModule import EmoNetModule
 try:
     from gdl.models.EmoSwinModule import EmoSwinModule
 except ImportError as e: 
     print(f"Could not import EmoSwinModule. SWIN models will not be available. Make sure you pull the repository with submodules to enable SWIN.")
-from gdl.models.EmoCnnModule import EmoCnnModule
-from gdl.models.IO import get_checkpoint_with_kwargs
-from gdl.utils.other import class_from_str
 import sys
+import inspect
+from .EmonetLoader import get_emonet
+from .other import class_from_str
+from .Metrics import get_metric
+from .BarlowTwins import BarlowTwinsLossHeadless, BarlowTwinsLoss
 
-
-
-# def emo_network_from_path(path):
-#     print(f"Loading trained emotion network from: '{path}'")
-
-#     def load_configs(run_path):
-#         from omegaconf import OmegaConf
-#         with open(Path(run_path) / "cfg.yaml", "r") as f:
-#             conf = OmegaConf.load(f)
-#         if run_path != conf.inout.full_run_dir: 
-#             conf.inout.output_dir = str(Path(run_path).parent)
-#             conf.inout.full_run_dir = str(run_path)
-#             conf.inout.checkpoint_dir = str(Path(run_path) / "checkpoints")
-#         return conf
-
-#     cfg = load_configs(path)
-
-#     if not bool(cfg.inout.checkpoint_dir):
-#         cfg.inout.checkpoint_dir = str(Path(path) / "checkpoints")
-
-#     checkpoint_mode = 'best'
-#     stages_prefixes = ""
-
-#     checkpoint, checkpoint_kwargs = get_checkpoint_with_kwargs(cfg, stages_prefixes,
-#                                                                checkpoint_mode=checkpoint_mode,
-#                                                                # relative_to=relative_to_path,
-#                                                                # replace_root=replace_root_path
-#                                                                )
-#     checkpoint_kwargs = checkpoint_kwargs or {}
-
-#     if 'emodeca_type' in cfg.model.keys():
-#         module_class = class_from_str(cfg.model.emodeca_type, sys.modules[__name__])
-#     else:
-#         module_class = EmoNetModule
-
-#     emonet_module = module_class.load_from_checkpoint(checkpoint_path=checkpoint, strict=False,
-#                                                       **checkpoint_kwargs)
-#     return emonet_module
+from enum import Enum
 
 
 def create_emo_loss(device, emoloss = None, trainable=False, dual=False, normalize_features=False, emo_feat_loss=None):
@@ -64,7 +26,7 @@ def create_emo_loss(device, emoloss = None, trainable=False, dual=False, normali
     if isinstance(emoloss, str):
         path = Path(emoloss)
         if path.is_dir():
-            from gdl.layers.losses.emotion_loss_loader import emo_network_from_path
+            from .emotion_loss_loader import emo_network_from_path
             emo_loss = emo_network_from_path(path)
 
             if isinstance(emo_loss, EmoNetModule):
@@ -124,8 +86,7 @@ def create_au_loss(device, au_loss):
             raise ValueError("Please specify the config to instantiate AU loss")
 
 
-from .Metrics import get_metric
-from .BarlowTwins import BarlowTwinsLossHeadless, BarlowTwinsLoss
+
 
 class EmoLossBase(torch.nn.Module):
 
@@ -188,10 +149,16 @@ class EmoLossBase(torch.nn.Module):
         output_emotion = self._forward_output(output_images)
         self.input_emotion = input_emotion
         self.output_emotion = output_emotion
+        ##########################
+        #
+        # Ask Radek
+        #
+        #print('input_emotion',input_emotion)
 
         if 'emo_feat' in input_emotion.keys():
             input_emofeat = input_emotion['emo_feat']
             output_emofeat = output_emotion['emo_feat']
+
 
             if self.normalize_features:
                 input_emofeat = input_emofeat / input_emofeat.view(input_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat.shape)-1)*[1]) )
@@ -203,19 +170,22 @@ class EmoLossBase(torch.nn.Module):
                 emo_feat_loss_1 = self.emo_feat_loss(input_emofeat, output_emofeat).mean()
         else:
             emo_feat_loss_1 = None
+        if 'emo_feat_2' in input_emotion.keys():
 
-        input_emofeat_2 = input_emotion['emo_feat_2']
-        output_emofeat_2 = output_emotion['emo_feat_2']
+            input_emofeat_2 = input_emotion['emo_feat_2']
+            output_emofeat_2 = output_emotion['emo_feat_2']
 
-        if self.normalize_features:
-            input_emofeat_2 = input_emofeat_2 / input_emofeat_2.view(input_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat_2.shape)-1)*[1]) )
-            output_emofeat_2 = output_emofeat_2 / output_emofeat_2.view(output_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat_2.shape)-1)*[1]) )
+            if self.normalize_features:
+                input_emofeat_2 = input_emofeat_2 / input_emofeat_2.view(input_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat_2.shape)-1)*[1]) )
+                output_emofeat_2 = output_emofeat_2 / output_emofeat_2.view(output_images.shape[0], -1).norm(dim=1).view(-1, *((len(input_emofeat_2.shape)-1)*[1]) )
 
 
-        if isinstance(self.emo_feat_loss, (BarlowTwinsLossHeadless, BarlowTwinsLoss)):
-            emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2, batch_size=batch_size, ring_size=ring_size).mean()
+            if isinstance(self.emo_feat_loss, (BarlowTwinsLossHeadless, BarlowTwinsLoss)):
+                emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2, batch_size=batch_size, ring_size=ring_size).mean()
+            else:
+                emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2).mean()
         else:
-            emo_feat_loss_2 = self.emo_feat_loss(input_emofeat_2, output_emofeat_2).mean()
+            emo_feat_loss_2 = None
 
         if 'valence' in input_emotion.keys() and input_emotion['valence'] is not None:
             valence_loss = self.valence_loss(input_emotion['valence'], output_emotion['valence'])
@@ -239,6 +209,7 @@ class EmoLossBase(torch.nn.Module):
             au_loss = self.au_loss(input_emotion['AUs'], output_emotion['AUs'])
         else:
             au_loss = None
+        
 
         return emo_feat_loss_1, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, au_loss
 
@@ -265,7 +236,7 @@ class EmoNetLoss(EmoLossBase):
 
     def __init__(self, device, emonet=None, trainable=False, normalize_features=False, emo_feat_loss=None, au_loss=None):
         if emonet is None:
-            emonet = get_emonet(device).eval()
+            emonet = get_emonet(device)
 
         last_feature_size = 256 # TODO: fix this hardcoded number, get it from EmoNet class instead
         if isinstance(emo_feat_loss, dict ) and "barlow_twins" in emo_feat_loss["type"]:
@@ -305,7 +276,7 @@ class EmoNetLoss(EmoLossBase):
         #     self.emonet = emonet
 
         if not trainable:
-            self.emonet.eval()
+            #self.emonet.eval()
             self.emonet.requires_grad_(False)
         else:
             self.emonet.train()
@@ -353,7 +324,7 @@ class EmoNetLoss(EmoLossBase):
     def emonet_out(self, images):
         images = F.interpolate(images, self.size, mode='bilinear')
         # images = self.transform(images)
-        return self.emonet(images, intermediate_features=True)
+        return self.emonet(images)#, intermediate_features=True)
 
 
     def _get_trainable_params(self):
