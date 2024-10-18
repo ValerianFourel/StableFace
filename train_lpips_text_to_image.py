@@ -72,7 +72,6 @@ from torch.nn.parallel import parallel_apply
 from functools import partial
 from datetime import datetime
 from datasets.custom_dataset import CustomDataset
-from losses.EmoNetLoss import EmoNetLoss
 negative_prompt = "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
 
 ###########################
@@ -474,9 +473,7 @@ def main(args):
     
     # Initialize LPIPS loss
     lpips_loss = LPIPS(net='vgg').to(accelerator.device)  # You can use 'alex', 'vgg', or 'squeeze' as the network
-    emonet_loss = EmoNetLoss(device = accelerator.device)
-    if emonet_loss == None:
-        print('emonet_loss is NONE')
+
         #break
 ###################################################################################
     if args.solver.enable_xformers_memory_efficient_attention:
@@ -914,10 +911,7 @@ def main(args):
                         lpips_value = lpips_loss(normalize_between_neg1_and_1(image_pred_batch.float()), normalize_between_neg1_and_1(batch["pixel_values"].to(weight_dtype).float())).mean()
                     
                     loss = args.l1_loss_weight * l1_loss + args.lpips_loss_weight * lpips_value
-                    emo_feat_loss_1, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, au_loss = emonet_loss.compute_loss(image_pred_batch.float(), batch["pixel_values"].to(weight_dtype).float())
-                    loss +=  args.lpips_loss_weight/5 * valence_loss + args.lpips_loss_weight/5 * arousal_loss + args.lpips_loss_weight/5 * expression_loss 
-
-
+                    
                 # Gather the losses across all processes for logging (if we use distributed training).
                 avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
                 train_loss += avg_loss.item() / args.gradient_accumulation_steps

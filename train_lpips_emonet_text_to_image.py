@@ -71,7 +71,8 @@ import torch
 from torch.nn.parallel import parallel_apply
 from functools import partial
 from datetime import datetime
-
+from datasets.custom_dataset import CustomDataset
+from losses.EmoNetLoss import EmoNetLoss
 negative_prompt = "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
 
 ###########################
@@ -98,29 +99,7 @@ import json
 model_id = "SG161222/Realistic_Vision_V6.0_B1_noVAE"
 annotation_file = '/home/vfourel/FaceGPT/Data/LLaVAAnnotations/StableDiffusionPrompts/PromptsSmall07_41ksamples.json'
 
-# Define your dataset class
-class CustomDataset(Dataset):
-    def __init__(self, annotation_file, tokenizer, transform=None):
-        with open(annotation_file, 'r') as f:
-            self.annotations = json.load(f)
-        self.transform = transform
-        self.image_paths = list(self.annotations.keys())#[:1000]
-        self.tokenizer = tokenizer
 
-    def __len__(self):
-        return len(self.image_paths)
-
-    def __getitem__(self, idx):
-        image_path = self.image_paths[idx]
-        description = self.annotations[image_path]
-        image = Image.open(image_path).convert("RGB")
-        if self.transform:
-            image = self.transform(image)
-        inputs = self.tokenizer(
-            description, max_length=self.tokenizer.model_max_length, padding="max_length", truncation=True, return_tensors="pt"
-        )
-        return {"image": image, "input_ids": inputs.input_ids}
-    
         # Preprocessing the datasets.
     # We need to tokenize input captions and transform the images.
 
@@ -337,24 +316,13 @@ def process_batch_image_pred(model_pred, timesteps, noisy_latents, noise_schedul
         [process_fn] * batch_size,
         inputs
     )
-    # denoised_latents_list = []
 
-    # for i in range(batch_size):
-    #     denoised_latent = process_single_image(
-    #         model_pred[i],
-    #         timesteps[i],
-    #         noisy_latents[i],
-    #         noise_scheduler,
-    #         vae
-    #     )
-    #     denoised_latents_list.append(denoised_latent)
 
     # Stack the results
     denoised_latents_batch = torch.stack(denoised_latents_list).squeeze(1)
 
     # Decode the entire batch at once
-    image_pred = denoised_latents_batch #vae.decode(denoised_latents_batch).sample
-    # print(denoised_latents_batch.shape, denoised_latents_batch[0].shape)
+    image_pred = denoised_latents_batch 
 
     return image_pred
 
@@ -468,10 +436,6 @@ def main(args):
         subfolder="unet",
     ).to(device="cuda")
 
-
-    # image_enc = CLIPVisionModelWithProjection.from_pretrained(
-    #     args.image_encoder_path,
-    # ).to(dtype=weight_dtype, device="cuda")    
     
     guidance_encoder_flame = setup_guidance_encoder(args)
     
@@ -510,6 +474,10 @@ def main(args):
     
     # Initialize LPIPS loss
     lpips_loss = LPIPS(net='vgg').to(accelerator.device)  # You can use 'alex', 'vgg', or 'squeeze' as the network
+    emonet_loss = EmoNetLoss(device = accelerator.device)
+    if emonet_loss == None:
+        print('emonet_loss is NONE')
+        #break
 ###################################################################################
     if args.solver.enable_xformers_memory_efficient_attention:
         if is_xformers_available():
@@ -647,9 +615,6 @@ def main(args):
 
 
 
-
-
-
 #######################################################
 #
 # Modifications by VF
@@ -672,7 +637,6 @@ def main(args):
 #
 # VF: modify this function
 
-
     def collate_fn(examples):
         # Assuming `tgt_img` contains the image data
         pixel_values = torch.stack([example["tgt_img"] for example in examples])
@@ -682,14 +646,10 @@ def main(args):
         tgt_guids = torch.stack([example["tgt_guid"] for example in examples])
         attention_masks = torch.stack([example["attention_mask"] for example in examples])
         input_ids = torch.stack([example["input_ids"] for example in examples])
-        # print("DEVICE:    ",input_idss.device,attention_masks.device)
-        # with torch.no_grad():  # If you're not training the text encoder, use no_grad to save memory
-        #      text_embeddings = text_encoder(input_idss, attention_mask=attention_masks)[0]
 
         # If `description` is a list of strings, you may need to tokenize them
         # For this example, let's assume descriptions are already tokenized
             # Extract and tokenize descriptions
-        # text_embeddings = [example["text_embeddings"] for example in examples]
 
         return {
             "pixel_values": pixel_values,
@@ -728,20 +688,6 @@ def main(args):
     model, optimizer, train_dataloader, lr_scheduler = accelerator.prepare(
         model, optimizer, train_dataloader, lr_scheduler
     )
-
-    ##################################
-    #
-    # We remove the last batch to keep a smooth training function
-    #
-
-    # # Determine the total number of batches
-    # total_batches = len(train_dataloader)
-
-    # # Create a new dataloader without the last batch
-    # train_dataloader = itertools.islice(train_dataloader, total_batches - 1)
-
-    # # If needed, wrap the iterator back to a DataLoader
-    # train_dataloader = DataLoader(list(train_dataloader), batch_size=train_dataloader.batch_size, shuffle=train_dataloader.shuffle)
 
 
 
@@ -783,7 +729,6 @@ def main(args):
     # we need to define the model_dtype
     model_dtype = next(vae.parameters()).dtype
         # Initialize only WandB tracker, skip TensorBoard
-        # accelerator.init_trackers(args.tracker_project_name, config=tracker_config, init_kwargs={"wandb": {"entity": "your_wandb_entity"}})
         ##############################################################################################################################
     # Train!
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
@@ -959,34 +904,8 @@ def main(args):
                     l1_loss = F.l1_loss(model_pred.float(), target.float(), reduction="none")
                     l1_loss = l1_loss.mean(dim=list(range(1, len(l1_loss.shape)))) * l1_loss_weights
                     l1_loss = l1_loss.mean()
-                        # perform guidance
-                    #print(model_pred.shape)
-                    # print('image_pred_batch',image_pred_batch.shape)
-                    # print('timesteps',timesteps)
-                    # print('noisy_latents',noisy_latents.shape)
-                    #tensor_to_grid_picture(image_pred_batch,'image_check','pred.png')
-                    #tensor_to_grid_picture(batch["pixel_values"].to(weight_dtype),'image_check','original.png')
-                     # Calculate LPIPS loss
-                     # The exact method depends on your noise scheduler. Here's a general approach:
-                    # denoised_latents = noise_scheduler.step(
-                    #      model_output=model_pred[0],
-                    #     timestep=timesteps[0],
-                    #      sample=noisy_latents[0]
-                    #  ).pred_original_sample
-                    #print(denoised_latents)
-                    # denoised_latents = 1 / 0.18215 * denoised_latents
-                    # try:
-                    #     scaling_factor = reference_unet.config.scaling_factor
-                    #     print(scaling_factor, 'scaling_factor')
-                    # except:
-                    #     print('error')
-
-                    # print(denoised_latents.shape,denoised_latents[0].shape)
-                    #image_pred = vae.decode(denoised_latents.unsqueeze(0)).sample
-                    # print("VAE config:", vae.config)
-                    
-                    #print("image_pred shape:", image_pred.shape, model_pred.shape)
-                    # print("original shape:", batch["pixel_values"].to(weight_dtype).shape)
+                    # perform guidance
+                   
                     if args.lpips_loss_weight == 0:
                         lpips_value = 0.0
                     else:
@@ -995,7 +914,8 @@ def main(args):
                         lpips_value = lpips_loss(normalize_between_neg1_and_1(image_pred_batch.float()), normalize_between_neg1_and_1(batch["pixel_values"].to(weight_dtype).float())).mean()
                     
                     loss = args.l1_loss_weight * l1_loss + args.lpips_loss_weight * lpips_value
-
+                    emo_feat_loss_1, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, au_loss = emonet_loss.compute_loss(image_pred_batch.float(), batch["pixel_values"].to(weight_dtype).float())
+                    loss +=  args.valence_loss_weight * valence_loss + args.arousal_loss_weight * arousal_loss + args.expression_loss_weight * expression_loss 
 
 
                 # Gather the losses across all processes for logging (if we use distributed training).
@@ -1003,11 +923,9 @@ def main(args):
                 train_loss += avg_loss.item() / args.gradient_accumulation_steps
 
                 # Backpropagate
-                # loss.backward()
                 accelerator.backward(loss)
                 if accelerator.sync_gradients:
                     accelerator.clip_grad_norm_(reference_unet.parameters(), args.max_grad_norm)
-                    # accelerator.clip_grad_norm_(vae.parameters(), args.max_grad_norm)
 
                 optimizer.step()
                 lr_scheduler.step()
@@ -1031,7 +949,6 @@ def main(args):
                 progress_bar.update(1)
                 global_step += 1
                 # no wandb by VF
-                # accelerator.log({"train_loss": train_loss,"loss": loss, "learning_rate": lr_scheduler.get_last_lr()}, step=global_step)
                 train_loss = 0.0
 
                 if global_step % args.checkpointing_steps == 0:
@@ -1097,7 +1014,6 @@ def main(args):
             # Run validation every half epoch
             if is_quarter_or_halfway_or_last: # we run the validation evey half epochs
             # Ensure all processes are synchronized before checking if it's the main process
-                #accelerator.wait_for_everyone()
                 print('Running the validation script')
                 accelerator.wait_for_everyone()
                 if args.use_ema:
@@ -1191,7 +1107,7 @@ if __name__ == "__main__":
     import shutil
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="./configs/train/flame_train_lpips.yaml")
+    parser.add_argument("--config", type=str, default="./configs/train/flame_train_lpips_emonet.yaml")
     args = parser.parse_args()
 
     if args.config.endswith(".yaml"):
