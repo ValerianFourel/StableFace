@@ -1,9 +1,12 @@
 pretrained_model_name_or_path: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
 finetuned_model: "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res/checkpoint-144"
 revision: null
-seed: null
-
+seed: 42
+model_original: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
 validation_dict: "/ps/scratch/ps_shared/vfourel/affectnet_41k_AffectOnly/EmocaProcessed_38k/Corpus_300_validation.json"
+output_folder: "final_144checkpoints_validation300steps_guidance_scale90"
+negative_prompt:  "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
+pretrained_path_guidance_encoder_flame: "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res/checkpoint-176/flame_encoder/guidance_encoder_flame.pth"
 
 guidance_encoder_kwargs:
   guidance_embedding_channels: 320

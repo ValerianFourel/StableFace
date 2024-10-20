@@ -31,5 +31,4 @@ def get_emonet(device=None, load_pretrained=True):
         net.reset_emo_parameters()
 
     net.eval()
-    print('Ellllllllll')
     return net

@@ -153,13 +153,10 @@ def load_models(args):
         )
     return guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model
 
-def run_inference_ChampModel(args,negative_prompt=negative_prompt):
-    guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
-    demonstrationPaths = "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
 
 
 
-def inference_pipeline(args,negative_prompt=negative_prompt):
+def inference_pipeline(args):
     # Load models
     guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
     
@@ -177,25 +174,7 @@ def inference_pipeline(args,negative_prompt=negative_prompt):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pipeline = pipeline.to(device)
     
-    
     return pipeline 
-
-    # # Run inference
-    # prompt = "Disgust, Man"
-    # negative_prompt = negative_prompt
-    # multi_guidance_lst = "Your multi-guidance list here"  # Adjust based on your model's requirements
-    
-    # with torch.no_grad():
-    #     image = pipeline(
-    #         prompt=prompt,
-    #         negative_prompt=negative_prompt,
-    #         multi_guidance_lst=multi_guidance_lst,
-    #         num_inference_steps=20,
-    #         generator=generator
-    #     ).images[0]
-    
-    # # Save or display the image
-    # return image
 
 
 def load_model_original_pipeline(model_id="SG161222/Realistic_Vision_V6.0_B1_noVAE", device="cuda"):
@@ -211,14 +190,14 @@ def load_model_original_pipeline(model_id="SG161222/Realistic_Vision_V6.0_B1_noV
     
     return pipeline
 
-def generate_image(prompt, pipeline, num_inference_steps=300, guidance_scale=9.0, negative_prompt=negative_prompt):
+def generate_image(prompt, pipeline, num_inference_steps=300, guidance_scale=9.0,args):
     # Generate an image from the prompt with an optional negative prompt
     # Set up generator for reproducibility
     generator = torch.Generator(device=device).manual_seed(args.seed) if args.seed is not None else None
     with torch.no_grad():
         #prompt = "high detail, 4k, photorealistic" + prompt
         image = pipeline(prompt=prompt, 
-                      negative_prompt=negative_prompt, 
+                      negative_prompt=args.negative_prompt, 
                       num_inference_steps=num_inference_steps, 
                       guidance_scale=guidance_scale,
                        generator=generator).images[0]
@@ -238,17 +217,17 @@ def main(args):
     # Load the pipeline
     pipeline_original = load_model_original_pipeline()
 
-    pipeline = inference_pipeline(args,negative_prompt=negative_prompt)
+    pipeline = inference_pipeline(args)
 
         # Path to your JSON file
-    json_file_path = '/ps/scratch/ps_shared/vfourel/affectnet_41k_AffectOnly/EmocaProcessed_38k/Corpus_300_validation.json'
+    json_file_path = args.validation_dict
 
     # Read the JSON file
     with open(json_file_path, 'r') as file:
         data = json.load(file)
 
     # Create validation folder if it doesn't exist
-    folder = "final_144checkpoints_validation300steps_guidance_scale90"
+    folder = args.output_folder
     os.makedirs(folder, exist_ok=True)
 
     for i, (key, value) in enumerate(data.items(), start=1):

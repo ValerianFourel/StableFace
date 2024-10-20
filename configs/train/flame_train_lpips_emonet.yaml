@@ -11,7 +11,7 @@ caption_column: "text"
 max_train_samples: null
 validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
 validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
-output_dir: "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res" #sd-model-finetuned-l1-snr10-lr05 is the last one
+output_dir: "/fast/vfourel/StableFaceFinetune/final-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res" #sd-model-finetuned-l1-snr10-lr05 is the last one
 output_sample_image: "final-sd-model-finetuned-l192_lpips08-emonet-snr08-lr56_224res"
 demonstration_file: "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
 cache_dir: null
