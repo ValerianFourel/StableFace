@@ -1,2 +1,0 @@
-from .emonet import EmoNet
-
