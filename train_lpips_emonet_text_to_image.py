@@ -189,7 +189,7 @@ More information on all the CLI arguments and the environment are available on y
         f.write(yaml + model_card)
 
 
-def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight_dtype,guidance_encoder_flame,save_picture=False):
+def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight_dtype,guidance_encoders,save_picture=False):
     logger.info("Running validation... ")
 
     pipeline = StableDiffusionPipeline.from_pretrained(
@@ -437,7 +437,7 @@ def main(args):
     ).to(device="cuda")
 
     
-    guidance_encoder_flame = setup_guidance_encoder(args)
+    guidance_encoders = setup_guidance_encoder(args)
     
     # Freeze some modules
     vae.requires_grad_(False)
@@ -453,7 +453,7 @@ def main(args):
         else:
             param.requires_grad_(True)
             
-    for module in guidance_encoder_flame.values():
+    for module in guidance_encoders.values():
         module.requires_grad_(True)
             
     reference_control_writer = ReferenceAttentionControl(
@@ -469,7 +469,7 @@ def main(args):
     model = ChampFlameModel(
             reference_unet,
             reference_control_writer,
-            guidance_encoder_flame,
+            guidance_encoders,
         )
     
     # Initialize LPIPS loss
@@ -627,6 +627,7 @@ def main(args):
         sample_margin=args.data.sample_margin,
         data_parts=args.data.data_parts,
         guids=args.data.guids,
+        Image_band_paths =args.data.Image_band_paths,
         extra_region=None,
         bbox_crop=args.data.bbox_crop,
         bbox_resize_ratio=tuple(args.data.bbox_resize_ratio),
@@ -1006,7 +1007,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
 
@@ -1023,9 +1024,7 @@ def main(args):
                 #####################################
                 #
                 # Valerian FOUREL
-                # guidance_encoder_flame = setup_guidance_encoder(args)
-                # for module in guidance_encoder_flame.values():
-                #     module.requires_grad_(True)
+
                 #####################################
                 log_validation(
                     vae,
@@ -1035,7 +1034,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
 
@@ -1055,7 +1054,6 @@ def main(args):
             text_encoder=text_encoder, # we have to 
             vae=vae,
             unet=reference_unet,
-            guidance_encoder_flame=guidance_encoder_flame,
             revision=args.revision,
         )
         pipeline.save_pretrained(args.output_dir)
@@ -1069,7 +1067,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
         if args.push_to_hub:

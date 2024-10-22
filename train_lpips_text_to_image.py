@@ -72,6 +72,7 @@ from torch.nn.parallel import parallel_apply
 from functools import partial
 from datetime import datetime
 from datasets.custom_dataset import CustomDataset
+# from losses.EmoNetLoss import EmoNetLoss
 negative_prompt = "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
 
 ###########################
@@ -188,7 +189,7 @@ More information on all the CLI arguments and the environment are available on y
         f.write(yaml + model_card)
 
 
-def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight_dtype,guidance_encoder_flame,save_picture=False):
+def log_validation(vae, text_encoder, tokenizer, unet, args, accelerator, weight_dtype,guidance_encoders,save_picture=False):
     logger.info("Running validation... ")
 
     pipeline = StableDiffusionPipeline.from_pretrained(
@@ -436,7 +437,7 @@ def main(args):
     ).to(device="cuda")
 
     
-    guidance_encoder_flame = setup_guidance_encoder(args)
+    guidance_encoders = setup_guidance_encoder(args)
     
     # Freeze some modules
     vae.requires_grad_(False)
@@ -452,7 +453,7 @@ def main(args):
         else:
             param.requires_grad_(True)
             
-    for module in guidance_encoder_flame.values():
+    for module in guidance_encoders.values():
         module.requires_grad_(True)
             
     reference_control_writer = ReferenceAttentionControl(
@@ -468,12 +469,14 @@ def main(args):
     model = ChampFlameModel(
             reference_unet,
             reference_control_writer,
-            guidance_encoder_flame,
+            guidance_encoders,
         )
     
     # Initialize LPIPS loss
     lpips_loss = LPIPS(net='vgg').to(accelerator.device)  # You can use 'alex', 'vgg', or 'squeeze' as the network
-
+    # emonet_loss = EmoNetLoss(device = accelerator.device)
+    #if emonet_loss == None:
+    #    print('emonet_loss is NONE')
         #break
 ###################################################################################
     if args.solver.enable_xformers_memory_efficient_attention:
@@ -624,6 +627,7 @@ def main(args):
         sample_margin=args.data.sample_margin,
         data_parts=args.data.data_parts,
         guids=args.data.guids,
+        Image_band_paths =args.data.Image_band_paths,
         extra_region=None,
         bbox_crop=args.data.bbox_crop,
         bbox_resize_ratio=tuple(args.data.bbox_resize_ratio),
@@ -911,7 +915,10 @@ def main(args):
                         lpips_value = lpips_loss(normalize_between_neg1_and_1(image_pred_batch.float()), normalize_between_neg1_and_1(batch["pixel_values"].to(weight_dtype).float())).mean()
                     
                     loss = args.l1_loss_weight * l1_loss + args.lpips_loss_weight * lpips_value
-                    
+                    # emo_feat_loss_1, emo_feat_loss_2, valence_loss, arousal_loss, expression_loss, au_loss = emonet_loss.compute_loss(image_pred_batch.float(), batch["pixel_values"].to(weight_dtype).float())
+                    # loss +=  args.valence_loss_weight * valence_loss + args.arousal_loss_weight * arousal_loss + args.expression_loss_weight * expression_loss 
+
+
                 # Gather the losses across all processes for logging (if we use distributed training).
                 avg_loss = accelerator.gather(loss.repeat(args.train_batch_size)).mean()
                 train_loss += avg_loss.item() / args.gradient_accumulation_steps
@@ -1000,7 +1007,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
 
@@ -1017,9 +1024,7 @@ def main(args):
                 #####################################
                 #
                 # Valerian FOUREL
-                # guidance_encoder_flame = setup_guidance_encoder(args)
-                # for module in guidance_encoder_flame.values():
-                #     module.requires_grad_(True)
+
                 #####################################
                 log_validation(
                     vae,
@@ -1029,7 +1034,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
 
@@ -1049,7 +1054,6 @@ def main(args):
             text_encoder=text_encoder, # we have to 
             vae=vae,
             unet=reference_unet,
-            guidance_encoder_flame=guidance_encoder_flame,
             revision=args.revision,
         )
         pipeline.save_pretrained(args.output_dir)
@@ -1063,7 +1067,7 @@ def main(args):
                     args,
                     accelerator,
                     weight_dtype,
-                    guidance_encoder_flame
+                    guidance_encoders
                 )
 
         if args.push_to_hub:

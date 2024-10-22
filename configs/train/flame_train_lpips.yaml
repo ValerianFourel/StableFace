@@ -11,8 +11,8 @@ caption_column: "text"
 max_train_samples: null
 validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
 validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
-output_dir: "/fast/vfourel/StableFaceFinetune/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res" #sd-model-finetuned-l1-snr10-lr05 is the last one
-output_sample_image: "final-sd-model-finetuned-l192_lpips08-snr08-lr56_224res"
+output_dir: "/fast/vfourel/StableFaceFinetune/AllGuidances-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res" #sd-model-finetuned-l1-snr10-lr05 is the last one
+output_sample_image: "AllGuidances-sd-model-finetuned-l192_lpips08-snr08-lr56_224res"
 demonstration_file: "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
 cache_dir: null
 seed: null
@@ -70,10 +70,19 @@ l1_loss_weight: 0.92
 lpips_loss_weight: 0.08
 data:
   train_bs: 8
-  image_json_path: '/ps/scratch/ps_shared/vfourel/affectnet_41k_AffectOnly/EmocaProcessed_38k/Corpus_38k_full_train.json' # Your data root folder
+  image_json_path: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/processed_corpus_data_35k.json' # Your data root folder
+  Depth_image_folder: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/DepthFaces_35k'
+  Face_alignment_image_folder: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/FaceAlignment_35k'
+  Flame_image_folder: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/EmocaResized_35k/FLAMEResized'
+  Image_band_paths: {'original': '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/Manually_Annotated/Manually_Annotated_Images', # Your data root folder, 
+                     'alignment':  '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/FaceAlignment_35k',
+                     'depth': '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/DepthFaces_35k',
+                     'flame': '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/EmocaResized_35k/FLAMEResized'}
   guids: 
+    - 'alignment'
+    - 'depth'
     - 'flame'
-  image_size: 512
+  image_size: 256
   bbox_crop: False
   bbox_resize_ratio: [0.9, 1.5]
   aug_type: "Resize"

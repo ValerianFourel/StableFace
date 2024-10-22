@@ -17,7 +17,23 @@ from torch.utils.data import Dataset
 from transformers import CLIPImageProcessor
 from tqdm import tqdm
 from datasets.data_utils import process_bbox, crop_bbox, mask_to_bbox, mask_to_bkgd
+import os
 
+# (champ) vfourel@login4:/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/EmocaResized_35k$ python imageDis.py
+# Total number of images: 35168
+# Average width: 465.43 pixels
+# Average height: 465.33 pixels
+# Median width: 351.0 pixels
+# Median height: 351.0 pixels
+# Width range: 133 to 6832 pixels
+# Height range: 133 to 3815 pixels
+# Standard deviation of width: 320.03 pixels
+# Standard deviation of height: 318.61 pixels
+
+# Average aspect ratio: 1.00
+# Median aspect ratio: 1.00
+# Aspect ratio range: 1.00 to 2.00
+# Script execution completed.
 
 class ImageDataset(Dataset):
     def __init__(
@@ -28,7 +44,9 @@ class ImageDataset(Dataset):
         image_size: int = 768,
         sample_margin: int = 30,
         data_parts: list = ["all"],
-        guids: list = ["flame"], # modified by VF from original
+        guids: list[str] = ['alignment','depth','flame'], # modified by VF from original
+        keys: list[str] = ['original','alignment','depth','flame'],
+        Image_band_paths: dict = {},
         extra_region: list = [],
         bbox_crop=True,
         bbox_resize_ratio=(0.8, 1.2),
@@ -50,7 +68,8 @@ class ImageDataset(Dataset):
         self.select_face = select_face
         # data is the dict of the paths and the desriptions of the images
         self.data_lst , self.data = self.generate_data_lst()
-        
+        self.image_band_paths = Image_band_paths
+        self.keys = keys
         self.clip_image_processor = CLIPImageProcessor()
         self.pixel_transform, self.guid_transform = self.setup_transform()
             
@@ -155,17 +174,35 @@ class ImageDataset(Dataset):
     
     ### 
     # We simply the get item function in order to only use the 
-    # flame guidance
+
+
     def __getitem__(self, idx):
+        def get_image_path(item_path):
+            result = {}
+            for band, base_path in self.image_band_paths.items():
+                if band == 'original':
+                    # For 'original', we need to handle various image extensions
+                    for ext in ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG']:
+                        full_path = os.path.join(self.image_band_paths[band], f"{item_path}{ext}")
+                        if os.path.exists(full_path):
+                            result[band] = full_path
+                            break
+                    else:
+                        raise FileNotFoundError(f"No image file found for {item_path} in {self.image_band_paths[band]}")
+                else:
+                    # For other bands, we use .png extension
+                    result[band] = os.path.join(self.image_band_paths[band], f"{item_path}.png")
+
+            return result
         item_path = self.data_lst[idx]
         ####################################
         # to obtain the paths of the flame guidance
-        modified_path = item_path.replace("inputs", "geometry_detail")
+        result = get_image_path(item_path)
 
-        
-
-        original_img_pil = Image.open(item_path)
-        flame_img_pil = Image.open(modified_path)
+        original_img_pil = Image.open(result[self.keys[0]])
+        alignment_img_pil = Image.open(result[self.keys[1]])
+        depth_img_pil = Image.open(result[self.keys[2]])
+        flame_img_pil = Image.open(result[self.keys[3]])
         description = self.data.get(item_path)
         text_input = self.tokenizer(description, padding="max_length", truncation=True, return_tensors="pt")
 
@@ -179,8 +216,10 @@ class ImageDataset(Dataset):
         # augmentation
         state = torch.get_rng_state()
         tgt_img = self.augmentation(original_img_pil, self.pixel_transform, state)
-        tgt_guid = self.augmentation(flame_img_pil, self.guid_transform, state)
-
+        tgt_guid_alignment = self.augmentation(alignment_img_pil, self.guid_transform, state)
+        tgt_guid_depth = self.augmentation(depth_img_pil, self.guid_transform, state)
+        tgt_guid_flame = self.augmentation(flame_img_pil, self.guid_transform, state)
+        tgt_guid = torch.cat([tgt_guid_alignment,tgt_guid_depth,tgt_guid_flame],dim=0)
         sample = dict(
             tgt_img=tgt_img,
             tgt_guid=tgt_guid,

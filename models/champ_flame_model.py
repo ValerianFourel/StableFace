@@ -41,7 +41,9 @@ class ChampFlameModel(nn.Module):
             self.guidance_input_channels.append(guidance_module.guidance_input_channels)
         
         self.guidance_input_channels_flame = self.guidance_input_channels[0]
-        self.flame_encoder = guidance_encoder_group.get(self.guidance_types[0], None)
+        self.alignment_encoder = guidance_encoder_group.get('alignment', None)
+        self.depth_encoder = guidance_encoder_group.get('depth', None)
+        self.flame_encoder = guidance_encoder_group.get('flame', None)
     
         
     
@@ -54,11 +56,11 @@ class ChampFlameModel(nn.Module):
         # torch.save(self.state_dict(), os.path.join(save_directory, "champ_flame_model.pt"))
         
         # Save the flame_encoder in a separate subfolder
-        flame_encoder_dir = os.path.join(save_directory, "flame_encoder")
-        os.makedirs(flame_encoder_dir, exist_ok=True)
+        guidance_encoder_dir = os.path.join(save_directory, "guidance_encoder")
+        os.makedirs(guidance_encoder_dir, exist_ok=True)
         for guidance_type in self.guidance_types:
-            flame_encoder = getattr(self, f"guidance_encoder_{guidance_type}")
-            torch.save(flame_encoder.state_dict(), os.path.join(flame_encoder_dir, f"guidance_encoder_{guidance_type}.pth"))
+            guidance_encoder = getattr(self, f"guidance_encoder_{guidance_type}")
+            torch.save(guidance_encoder.state_dict(), os.path.join(guidance_encoder_dir, f"guidance_encoder_{guidance_type}.pth"))
         
         # Save the reference UNet model directly as diffusion_pytorch_model.bin
         unet_save_path = save_directory # os.path.join(save_directory, "unet")
@@ -92,14 +94,25 @@ class ChampFlameModel(nn.Module):
 
         # Save the flame encoder in a 'flame_encoder' subfolder in the parent directory of save_directory
         parent_directory = os.path.dirname(save_directory)
-        flame_encoder_save_path = os.path.join(parent_directory, 'flame_encoder')
-        os.makedirs(flame_encoder_save_path, exist_ok=True)
+        guidance_encoder_save_path = os.path.join(parent_directory, 'guidance_encoder')
+        os.makedirs(guidance_encoder_save_path, exist_ok=True)
         
         # Save the flame encoder model
         if self.flame_encoder is not None:
-            torch.save(self.flame_encoder.state_dict(), os.path.join(flame_encoder_save_path, 'pytorch_model.bin'))
+            torch.save(self.flame_encoder.state_dict(), os.path.join(guidance_encoder_save_path, 'flame_encoder_pytorch_model.bin'))
         else:
             raise AttributeError("Flame encoder module not found.")
+                # Save the flame encoder model
+        if self.alignment_encoder is not None:
+            torch.save(self.alignment_encoder.state_dict(), os.path.join(guidance_encoder_save_path, 'alignment_encoder_pytorch_model.bin'))
+        else:
+            raise AttributeError("Alignment encoder module not found.")
+        
+                # Save the flame encoder model
+        if self.depth_encoder is not None:
+            torch.save(self.depth_encoder.state_dict(), os.path.join(guidance_encoder_save_path, 'depth_encoder_pytorch_model.bin'))
+        else:
+            raise AttributeError("Depth encoder module not found.")
         
         print(f"Model saved to {save_directory}")
 
@@ -131,11 +144,6 @@ class ChampFlameModel(nn.Module):
             timesteps,
             encoder_hidden_states= encoder_hidden_states,
             guidance_fea=guidance_fea,
-            # added_cond_kwargs= {
-            #     "text_embeds": encoder_hidden_states , # You need to provide this
-            #     "time_ids":timesteps
-            # }, 
-       #     encoder_hidden_states=clip_image_embeds,
         )
 
         return model_pred
