@@ -20,9 +20,9 @@ resolution: 224
 center_crop: false
 random_flip: false
 train_batch_size: 4
-num_train_epochs: 5
+num_train_epochs: 10
 max_train_steps: null
-gradient_accumulation_steps: 64
+gradient_accumulation_steps: 32
 gradient_checkpointing: false
 learning_rate: 5e-6
 scale_lr: false
