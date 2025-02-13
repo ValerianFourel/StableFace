@@ -11,8 +11,8 @@ caption_column: "text"
 max_train_samples: null
 validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
 validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
-output_dir: "/fast/vfourel/StableFaceFinetune/AllGuidances-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res" #sd-model-finetuned-l1-snr10-lr05 is the last one
-output_sample_image: "AllGuidances-sd-model-finetuned-l192_lpips08-emonet-snr08-lr56_224res"
+output_dir: "/fast/vfourel/StableFaceFinetune/1031_AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-256pics" #sd-model-finetuned-l1-snr10-lr05 is the last one
+output_sample_image: "1031_AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-256pics"
 demonstration_file: "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
 cache_dir: null
 seed: null
@@ -22,7 +22,7 @@ random_flip: false
 train_batch_size: 4
 num_train_epochs: 10
 max_train_steps: null
-gradient_accumulation_steps: 32
+gradient_accumulation_steps: 8
 gradient_checkpointing: false
 learning_rate: 5e-6
 scale_lr: false
@@ -54,8 +54,8 @@ enable_xformers_memory_efficient_attention: false
 noise_offset: 0
 tracker_project_name: "text2image-fine-tune"
 
-image_width: 512
-image_height: 512
+image_width: 320
+image_height: 320
 
 guidance_encoder_kwargs:
   guidance_embedding_channels: 320
@@ -68,9 +68,9 @@ guidance_encoder_kwargs:
 #
 l1_loss_weight: 0.92
 lpips_loss_weight: 0.08
-valence_loss_weight: 0.027
-arousal_loss_weight: 0.027
-expression_loss_weight: 0.026
+valence_loss_weight: 0.03
+arousal_loss_weight: 0.03
+expression_loss_weight: 0.02
 data: #modify by VF
   train_bs: 8 
   image_json_path: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/processed_corpus_data_35k.json' # Your data root folder
@@ -85,7 +85,7 @@ data: #modify by VF
     - 'alignment'
     - 'depth'
     - 'flame'
-  image_size: 256
+  image_size: 320
   bbox_crop: False
   bbox_resize_ratio: [0.9, 1.5]
   aug_type: "Resize"

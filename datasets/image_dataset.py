@@ -121,43 +121,43 @@ class ImageDataset(Dataset):
         if self.bbox_crop:
             if self.aug_type == "Resize":
                 pixel_transform = transforms.Compose([
-                    transforms.Resize((self.image_size, self.image_size)),
+                    transforms.Resize((self.image_size, self.image_size), interpolation=Image.BICUBIC),
                     transforms.ToTensor(),
                     transforms.Normalize([0.5], [0.5]),
                 ])
-                guid_transform = transforms.Compose = ([
-                    transforms.Resize((self.image_size, self.image_size)),
+                guid_transform = transforms.Compose([
+                    transforms.Resize((self.image_size, self.image_size), interpolation=Image.BICUBIC),
                     transforms.ToTensor(),
                 ])
-                
+
             elif self.aug_type == "Padding":
                 pixel_transform = transforms.Compose([
-                    transforms.Lambda(self.resize_long_edge),
+                    transforms.Lambda(lambda img: self.resize_long_edge(img, interpolation=Image.LANCZOS)),
                     transforms.Lambda(self.padding_short_edge),
                     transforms.ToTensor(),
                     transforms.Normalize([0.5], [0.5]),
                 ])
                 guid_transform = transforms.Compose([
-                    transforms.Lambda(self.resize_long_edge),
+                    transforms.Lambda(lambda img: self.resize_long_edge(img, interpolation=Image.LANCZOS)),
                     transforms.Lambda(self.padding_short_edge),
                     transforms.ToTensor(),
                 ])
             else:
                 raise NotImplementedError("Do not support this augmentation")
-        
+
         else:
             pixel_transform = transforms.Compose([
-                transforms.RandomResizedCrop(size=self.image_size, scale=(0.9, 1.0), ratio=(1.0, 1.0)),
+                transforms.RandomResizedCrop(size=self.image_size, scale=(0.9, 1.0), ratio=(1.0, 1.0), interpolation=Image.BICUBIC),
                 transforms.ToTensor(),
                 transforms.Normalize([0.5], [0.5]),
             ])
             guid_transform = transforms.Compose([
-                transforms.RandomResizedCrop(size=self.image_size, scale=(0.9, 1.0), ratio=(1.0, 1.0)),
+                transforms.RandomResizedCrop(size=self.image_size, scale=(0.9, 1.0), ratio=(1.0, 1.0), interpolation=Image.BICUBIC),
                 transforms.ToTensor(),
             ])
-        
-        return pixel_transform, guid_transform            
-            
+
+        return pixel_transform, guid_transform         
+                
     def augmentation(self, images, transform, state=None):
         if state is not None:
             torch.set_rng_state(state)
