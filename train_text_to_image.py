@@ -122,10 +122,6 @@ check_min_version("0.22.0.dev0")
 
 logger = get_logger(__name__, log_level="INFO")
 
-DATASET_NAME_MAPPING = {
-    "lambdalabs/pokemon-blip-captions": ("image", "text"),
-}
-
 
 def save_model_card(
     args,
