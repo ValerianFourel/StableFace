@@ -8,6 +8,12 @@ We launch using:
 accelerate launch train_lpips_emonet_text_to_image.py
 '''
 
+Tùom kae a subfolder containing a finetuned version ready to be launched, you can use:
+'''
+cp -r feature_extractor model_index.json safety_checker scheduler text_encoder tokenizer vae ../AllGuidances_2-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res/checkpoint-176/ && cp -r unet/* ../AllGuidances_2-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res/checkpoint-176/unet/
+
+'''
+
 ## CUDA Compatibility
 
 This program requires **CUDA 11.8**. Please ensure that you have the correct version installed before proceeding.

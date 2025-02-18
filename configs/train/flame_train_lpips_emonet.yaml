@@ -11,8 +11,8 @@ caption_column: "text"
 max_train_samples: null
 validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
 validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
-output_dir: "/fast/vfourel/StableFaceFinetune/1031_AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-256pics" #sd-model-finetuned-l1-snr10-lr05 is the last one
-output_sample_image: "1031_AllGuidances-sd-model-finetuned-l192_lpips08_valence03_arousal_03_expression02-val_aro03_exp02-snr08-lr5e6-320pixels-256pics"
+output_dir: "/fast/vfourel/StableFaceFinetune/250218-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-256pics-8gpus" #sd-model-finetuned-l1-snr10-lr05 is the last one
+output_sample_image: "250218-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-256pics-8gpus"
 demonstration_file: "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
 cache_dir: null
 seed: null
@@ -47,7 +47,7 @@ logging_dir: "logs"
 mixed_precision: null
 report_to: "tensorboard"
 local_rank: -1
-checkpointing_steps: 32
+checkpointing_steps: 88
 checkpoints_total_limit: null
 resume_from_checkpoint: null
 enable_xformers_memory_efficient_attention: false
