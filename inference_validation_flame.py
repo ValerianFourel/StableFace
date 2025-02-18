@@ -94,7 +94,7 @@ def inspect_model_file(file_path):
 
 def load_guidance_encoder(cfg):
     # Define the path to the pre-trained weights
-    pretrained_path = "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res/checkpoint-176/flame_encoder/guidance_encoder_flame.pth"
+    pretrained_path = cfg.pretrained_path_guidance_encoder_flame
     
     # Initialize the GuidanceEncoder
     guidance_encoder_flame = GuidanceEncoder(guidance_embedding_channels=cfg.guidance_encoder_kwargs.guidance_embedding_channels,
@@ -190,9 +190,10 @@ def load_model_original_pipeline(model_id="SG161222/Realistic_Vision_V6.0_B1_noV
     
     return pipeline
 
-def generate_image(prompt, pipeline, num_inference_steps=300, guidance_scale=9.0,args):
+def generate_image(prompt, pipeline,args, num_inference_steps=300, guidance_scale=9.0):
     # Generate an image from the prompt with an optional negative prompt
     # Set up generator for reproducibility
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     generator = torch.Generator(device=device).manual_seed(args.seed) if args.seed is not None else None
     with torch.no_grad():
         #prompt = "high detail, 4k, photorealistic" + prompt
@@ -233,8 +234,8 @@ def main(args):
     for i, (key, value) in enumerate(data.items(), start=1):
         # Generate the images
         value  = clean_string(value)
-        image_original = generate_image(value, pipeline_original)
-        image_finetune = generate_image(value, pipeline)
+        image_original = generate_image(value, pipeline_original,args)
+        image_finetune = generate_image(value, pipeline,args)
 
         # Create the triptych
         output_filename = f"{folder}/{i:05d}.png"

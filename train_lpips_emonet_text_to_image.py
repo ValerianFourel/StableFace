@@ -528,7 +528,6 @@ def main(args):
     if version.parse(accelerate.__version__) >= version.parse("0.16.0"):
         # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
         def save_model_hook(models, weights, output_dir):
-            print("\n\n\n\n In save model_hook \n\n\n\n")
             if accelerator.is_main_process:
                 if args.use_ema:
                     ema_unet.save_pretrained(os.path.join(output_dir, "unet_ema"))
