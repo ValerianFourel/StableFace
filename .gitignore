@@ -1,7 +1,7 @@
 # Ignore Python bytecode files
 __pycache__/
 *.pyc
-
+huggingface/
 # Specifically ignore the files you mentioned
 models/__pycache__/attention.cpython-310.pyc
 models/__pycache__/guidance_encoder.cpython-310.pyc
@@ -22,8 +22,9 @@ validation/
 # wandb/**/*.yaml
 # wandb/**/events.out.tfevents.*
 **/*sd-model*/
-
+25*/
 # Ignore OldTemp and Temp folders
 OldTemp/
 Temp/
 Pictures/
+interactive_outputs/

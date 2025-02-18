@@ -14,7 +14,6 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 
-import torch
 from collections import OrderedDict
 from pprint import pprint
 
@@ -51,12 +50,12 @@ def load_guidance_encoder(cfg):
     return guidance_encoder_group
 
 def load_models(args):
-        # Load tokenizer and text encoder
-    tokenizer = CLIPTokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
-    text_encoder = CLIPTextModel.from_pretrained(args.pretrained_model_name_or_path, subfolder="text_encoder")
+        # Load tokenizer and text encoder # pretrained_model_name_or_path
+    tokenizer = CLIPTokenizer.from_pretrained(args.finetuned_model, subfolder="tokenizer")
+    text_encoder = CLIPTextModel.from_pretrained(args.finetuned_model, subfolder="text_encoder")
     
     # Load VAE
-    vae = AutoencoderKL.from_pretrained(args.pretrained_model_name_or_path, subfolder="vae")
+    vae = AutoencoderKL.from_pretrained(args.finetuned_model, subfolder="vae")
     
     # Load UNet
     reference_unet = UNet2DConditionModel.from_pretrained(args.finetuned_model, subfolder="unet")
@@ -106,7 +105,7 @@ def inference_pipeline(args):
     guidance_encoders, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
     
     # Set up pipeline
-    scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
+    scheduler = DDPMScheduler.from_pretrained(args.finetuned_model, subfolder="scheduler")
     pipeline = StableDiffusionPipeline.from_pretrained(
             args.finetuned_model,
             text_encoder=text_encoder, # we have to 
