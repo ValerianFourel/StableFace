@@ -65,44 +65,6 @@ def create_triptych(original_path, generated_image, finetuned_image, caption, ou
     # Save the triptych
     triptych.save(output_path)
 
-def inspect_model_file(file_path):
-    # Load the state dict
-    # Check if CUDA is available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    # Load the state dict
-    state_dict = torch.load(file_path, map_location=device)
-    # Check if it's an OrderedDict (typical for model state dicts)
-    if isinstance(state_dict, OrderedDict):
-        print("File contains a state dict (OrderedDict)")
-        
-        # Get basic info
-        num_keys = len(state_dict)
-        print(f"Number of keys: {num_keys}")
-        
-        # Print the first few keys and their tensor shapes
-        print("\nFirst 10 keys and their tensor shapes:")
-        for i, (key, tensor) in enumerate(state_dict.items()):
-            if i >= 10:
-                break
-            print(f"{key}: {tensor.shape}")
-        
-        # Get all unique top-level keys (assuming the format "layer.sublayer.weight")
-        top_level_keys = set(key.split('.')[0] for key in state_dict.keys())
-        print("\nTop-level keys (potential model components):")
-        pprint(list(top_level_keys))
-        
-    else:
-        print("File does not contain a standard PyTorch state dict")
-        print("Content type:", type(state_dict))
-        
-        # If it's a dict-like object, try to print its keys
-        if hasattr(state_dict, 'keys'):
-            print("\nKeys in the object:")
-            pprint(list(state_dict.keys()))
-        else:
-            print("Unable to inspect the contents further.")
 
 # Usage
 
@@ -244,7 +206,6 @@ def main(args):
         output_path = os.path.join(folder, subfolder)
         os.makedirs(output_path, exist_ok=True)
         # Generate the images
-        print(key)
         prompt  = clean_string(prompt)
         image_original = generate_image(prompt, pipeline_original,args)
         image_finetune = generate_image(prompt, pipeline,args)
