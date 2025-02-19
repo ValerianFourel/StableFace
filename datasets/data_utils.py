@@ -15,7 +15,18 @@ from PIL import Image
 from torch.utils.data import Dataset
 from transformers import CLIPImageProcessor
 from tqdm import tqdm
+from enum import Enum
 
+class AffectNetExpressions(Enum):
+    Neutral = 0
+    Happy = 1
+    Sad = 2
+    Surprise = 3
+    Fear = 4
+    Disgust = 5
+    Anger = 6
+    Contempt = 7
+    
 
 def process_bbox(bbox, H, W, scale=1.):
     # transform a bbox(xmin, ymin, xmax, ymax) to (H, W) square

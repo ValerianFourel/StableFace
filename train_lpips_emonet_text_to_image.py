@@ -624,9 +624,11 @@ def main(args):
         data_parts=args.data.data_parts,
         guids=args.data.guids,
         Image_band_paths =args.data.Image_band_paths,
+        path_images_emotions = args.data.path_images_emotions,
         extra_region=None,
         bbox_crop=args.data.bbox_crop,
         bbox_resize_ratio=tuple(args.data.bbox_resize_ratio),
+        balance_factor = 1.0
     )
 
 

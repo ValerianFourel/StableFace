@@ -18,7 +18,12 @@ from transformers import CLIPImageProcessor
 from tqdm import tqdm
 from datasets.data_utils import process_bbox, crop_bbox, mask_to_bbox, mask_to_bkgd
 import os
+from .data_utils import AffectNetExpressions
 
+from collections import Counter
+from enum import Enum
+import pandas as pd
+import numpy as np
 # (champ) vfourel@login4:/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/EmocaResized_35k$ python imageDis.py
 # Total number of images: 35168
 # Average width: 465.43 pixels
@@ -44,14 +49,16 @@ class ImageDataset(Dataset):
         image_size: int = 768,
         sample_margin: int = 30,
         data_parts: list = ["all"],
-        guids: list[str] = ['alignment','depth','flame'], # modified by VF from original
+        guids: list[str] = ['alignment','depth','flame'],
         keys: list[str] = ['original','alignment','depth','flame'],
         Image_band_paths: dict = {},
+        path_images_emotions: dict = {},
         extra_region: list = [],
         bbox_crop=True,
         bbox_resize_ratio=(0.8, 1.2),
-        aug_type: str = "Resize",  # "Resize" or "Padding"
+        aug_type: str = "Resize",
         select_face=False,
+        balance_factor: float = None,  # New parameter: None=original, 1.0=uniform
     ):
         super().__init__()
         self.tokenizer = tokenizer
@@ -66,21 +73,128 @@ class ImageDataset(Dataset):
         self.bbox_resize_ratio = bbox_resize_ratio
         self.aug_type = aug_type
         self.select_face = select_face
-        # data is the dict of the paths and the desriptions of the images
-        self.data_lst , self.data = self.generate_data_lst()
+        self.balance_factor = balance_factor
+
         self.image_band_paths = Image_band_paths
+        self.path_images_emotions = path_images_emotions
         self.keys = keys
         self.clip_image_processor = CLIPImageProcessor()
         self.pixel_transform, self.guid_transform = self.setup_transform()
-            
+        # Generate data based on balance factor
+        if balance_factor is None:
+            self.data_lst, self.data = self.generate_data_lst()
+        else:
+            self.data_lst, self.data = self.generate_balanced_data_lst()
+
+   
+    
     def generate_data_lst(self):
         data = {}
         with open(self.image_json_path, 'r') as file:
             data = json.load(file)
-        
-        # Extract keys (image paths) from the JSON data
         data_lst = list(data.keys())
         return data_lst, data
+
+    def generate_balanced_data_lst(self):
+        data = {}
+        with open(self.image_json_path, 'r') as file:
+            data = json.load(file)
+
+        emotions_df = pd.read_csv(self.path_images_emotions, header=None, 
+                                names=['full_path', 'emotion'])
+
+        def convert_emotion(x):
+            try:
+                if isinstance(x, str) and '.' in x:
+                    return int(float(x))
+                return int(float(x))
+            except (ValueError, TypeError):
+                return None
+
+        emotions_df['emotion'] = emotions_df['emotion'].apply(convert_emotion)
+
+        emotions_df['key'] = emotions_df['full_path'].apply(
+            lambda x: '/'.join(x.split('/')[-2:]).replace('.jpg', '')
+        )
+
+        key_to_emotion = dict(zip(emotions_df['key'], emotions_df['emotion']))
+
+        # Separate valid and invalid entries
+        valid_data = {}
+        invalid_keys = []
+        for k, v in data.items():
+            if (k in key_to_emotion and 
+                key_to_emotion[k] is not None and 
+                0 <= key_to_emotion[k] < len(AffectNetExpressions)):
+                valid_data[k] = v
+            else:
+                invalid_keys.append(k)
+
+        # Count original frequencies
+        emotion_counts = Counter(key_to_emotion[k] for k in valid_data.keys())
+        max_count = max(emotion_counts.values()) if emotion_counts else 0
+
+        distribution_stats = {}
+        balanced_keys = []
+
+        for emotion in range(len(AffectNetExpressions)):
+            emotion_keys = [k for k in valid_data.keys() 
+                        if key_to_emotion[k] == emotion]
+
+            if not emotion_keys:
+                distribution_stats[AffectNetExpressions(emotion).name] = {
+                    'original': 0,
+                    'resampled': 0
+                }
+                continue
+
+            current_count = len(emotion_keys)
+
+            if self.balance_factor == 1.0:
+                target_count = max_count
+            else:
+                uniform_count = max_count
+                target_count = int(current_count + 
+                                (uniform_count - current_count) * self.balance_factor)
+                target_count = max(current_count, target_count)
+
+            if current_count < target_count:
+                additional_samples = np.random.choice(
+                    emotion_keys,
+                    size=target_count - current_count,
+                    replace=True
+                ).tolist()
+                emotion_keys.extend(additional_samples)
+
+            balanced_keys.extend(emotion_keys)
+
+            distribution_stats[AffectNetExpressions(emotion).name] = {
+                'original': current_count,
+                'resampled': len(emotion_keys)
+            }
+
+        # Add invalid keys to balanced_keys
+        balanced_keys.extend(invalid_keys)
+
+        np.random.shuffle(balanced_keys)
+
+        # Create final balanced data including both valid and invalid entries
+        balanced_data = {k: data[k] for k in balanced_keys}
+
+        # Print distribution statistics
+        print("\nEmotion Distribution Statistics:")
+        print(f"{'Emotion':<12} {'Original':<10} {'Resampled':<10}")
+        print("-" * 32)
+        for emotion, counts in distribution_stats.items():
+            print(f"{emotion:<12} {counts['original']:<10} {counts['resampled']:<10}")
+
+        # Print invalid entries statistics
+        invalid_count = len(invalid_keys)
+        print(f"\nInvalid/Other: {invalid_count:<10} {invalid_count:<10}")
+        print(f"Total entries: {len(data):<10} {len(balanced_data):<10}")
+
+        return balanced_keys, balanced_data
+
     
     def is_valid(self, video_dir: Path):
         video_length = len(list((video_dir / "images").iterdir()))
