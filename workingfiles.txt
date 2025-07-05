@@ -1,0 +1,7 @@
+
+
+You can check this one that should work:
+
+/fast/vfourel/StableFaceFinetune/AllGuidances_2-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res/checkpoint-176
+
+

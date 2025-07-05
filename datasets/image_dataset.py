@@ -86,8 +86,8 @@ class ImageDataset(Dataset):
         else:
             self.data_lst, self.data = self.generate_balanced_data_lst()
 
-   
-    
+
+
     def generate_data_lst(self):
         data = {}
         with open(self.image_json_path, 'r') as file:
@@ -96,10 +96,15 @@ class ImageDataset(Dataset):
         return data_lst, data
 
     def generate_balanced_data_lst(self):
-        data = {}
+        """
+        Generate a balanced dataset with duplicated keys to achieve target distribution.
+        Returns a list of keys (with duplicates) and a lookup dictionary.
+        """
+        # Load original data
         with open(self.image_json_path, 'r') as file:
             data = json.load(file)
 
+        # Load and process emotions data
         emotions_df = pd.read_csv(self.path_images_emotions, header=None, 
                                 names=['full_path', 'emotion'])
 
@@ -112,7 +117,6 @@ class ImageDataset(Dataset):
                 return None
 
         emotions_df['emotion'] = emotions_df['emotion'].apply(convert_emotion)
-
         emotions_df['key'] = emotions_df['full_path'].apply(
             lambda x: '/'.join(x.split('/')[-2:]).replace('.jpg', '')
         )
@@ -135,8 +139,9 @@ class ImageDataset(Dataset):
         max_count = max(emotion_counts.values()) if emotion_counts else 0
 
         distribution_stats = {}
-        balanced_keys = []
+        balanced_keys_list = []  # Will contain duplicates
 
+        # Balance each emotion category
         for emotion in range(len(AffectNetExpressions)):
             emotion_keys = [k for k in valid_data.keys() 
                         if key_to_emotion[k] == emotion]
@@ -150,6 +155,7 @@ class ImageDataset(Dataset):
 
             current_count = len(emotion_keys)
 
+            # Calculate target count based on balance factor
             if self.balance_factor == 1.0:
                 target_count = max_count
             else:
@@ -158,6 +164,7 @@ class ImageDataset(Dataset):
                                 (uniform_count - current_count) * self.balance_factor)
                 target_count = max(current_count, target_count)
 
+            # Add duplicates if needed to reach target count
             if current_count < target_count:
                 additional_samples = np.random.choice(
                     emotion_keys,
@@ -166,7 +173,7 @@ class ImageDataset(Dataset):
                 ).tolist()
                 emotion_keys.extend(additional_samples)
 
-            balanced_keys.extend(emotion_keys)
+            balanced_keys_list.extend(emotion_keys)
 
             distribution_stats[AffectNetExpressions(emotion).name] = {
                 'original': current_count,
@@ -174,12 +181,14 @@ class ImageDataset(Dataset):
             }
 
         # Add invalid keys to balanced_keys
-        balanced_keys.extend(invalid_keys)
+        balanced_keys_list.extend(invalid_keys)
 
-        np.random.shuffle(balanced_keys)
+        # Shuffle the balanced keys
+        np.random.shuffle(balanced_keys_list)
 
-        # Create final balanced data including both valid and invalid entries
-        balanced_data = {k: data[k] for k in balanced_keys}
+        # Create a lookup dictionary (no duplicates)
+        # This is used for efficient data retrieval in __getitem__
+        lookup_dict = {k: data[k] for k in set(balanced_keys_list)}
 
         # Print distribution statistics
         print("\nEmotion Distribution Statistics:")
@@ -191,11 +200,15 @@ class ImageDataset(Dataset):
         # Print invalid entries statistics
         invalid_count = len(invalid_keys)
         print(f"\nInvalid/Other: {invalid_count:<10} {invalid_count:<10}")
-        print(f"Total entries: {len(data):<10} {len(balanced_data):<10}")
 
-        return balanced_keys, balanced_data
+        # Now we correctly report the actual number of samples (including duplicates)
+        print(f"Total original entries: {len(data)}")
+        print(f"Total balanced entries: {len(balanced_keys_list)}")
+        print(f"Unique keys in balanced dataset: {len(lookup_dict)}")
 
-    
+        return balanced_keys_list, lookup_dict
+
+
     def is_valid(self, video_dir: Path):
         video_length = len(list((video_dir / "images").iterdir()))
         for guid in self.guids:
@@ -210,13 +223,13 @@ class ImageDataset(Dataset):
                 if face_img_length == 0:
                     return False
         return True
-    
+
     def resize_long_edge(self, img):
         img_W, img_H = img.size
         long_edge = max(img_W, img_H)
         scale = self.image_size / long_edge
         new_W, new_H = int(img_W * scale), int(img_H * scale)
-        
+
         img = F.resize(img, (new_H, new_W))
         return img
 
@@ -227,10 +240,10 @@ class ImageDataset(Dataset):
         padding_right = width - img_W - padding_left
         padding_top = (height - img_H) // 2
         padding_bottom = height - img_H - padding_top
-        
+
         img = F.pad(img, (padding_left, padding_top, padding_right, padding_bottom), 0, "constant")
         return img
-    
+
     def setup_transform(self):
         if self.bbox_crop:
             if self.aug_type == "Resize":
@@ -246,13 +259,13 @@ class ImageDataset(Dataset):
 
             elif self.aug_type == "Padding":
                 pixel_transform = transforms.Compose([
-                    transforms.Lambda(lambda img: self.resize_long_edge(img, interpolation=Image.LANCZOS)),
+                    transforms.Lambda(lambda img: self.resize_long_edge(img)),
                     transforms.Lambda(self.padding_short_edge),
                     transforms.ToTensor(),
                     transforms.Normalize([0.5], [0.5]),
                 ])
                 guid_transform = transforms.Compose([
-                    transforms.Lambda(lambda img: self.resize_long_edge(img, interpolation=Image.LANCZOS)),
+                    transforms.Lambda(lambda img: self.resize_long_edge(img)),
                     transforms.Lambda(self.padding_short_edge),
                     transforms.ToTensor(),
                 ])
@@ -271,7 +284,7 @@ class ImageDataset(Dataset):
             ])
 
         return pixel_transform, guid_transform         
-                
+
     def augmentation(self, images, transform, state=None):
         if state is not None:
             torch.set_rng_state(state)
@@ -281,14 +294,10 @@ class ImageDataset(Dataset):
         else:
             ret_tensor = transform(images)  # (c, h, w)
         return ret_tensor
-    
-    
+
+
     def __len__(self):
         return len(self.data_lst)
-    
-    ### 
-    # We simply the get item function in order to only use the 
-
 
     def __getitem__(self, idx):
         def get_image_path(item_path):
@@ -308,37 +317,41 @@ class ImageDataset(Dataset):
                     result[band] = os.path.join(self.image_band_paths[band], f"{item_path}.png")
 
             return result
+
+        # Get the item path - may be duplicated in balanced dataset
         item_path = self.data_lst[idx]
-        ####################################
-        # to obtain the paths of the flame guidance
+
+        # Get image paths for all required bands
         result = get_image_path(item_path)
 
+        # Load all required images
         original_img_pil = Image.open(result[self.keys[0]])
         alignment_img_pil = Image.open(result[self.keys[1]])
         depth_img_pil = Image.open(result[self.keys[2]])
         flame_img_pil = Image.open(result[self.keys[3]])
+
+        # Get description and tokenize
         description = self.data.get(item_path)
         text_input = self.tokenizer(description, padding="max_length", truncation=True, return_tensors="pt")
-
-        # Generate text embeddings
         input_ids = text_input["input_ids"]
         attention_mask = text_input["attention_mask"]
 
-
-        # # Forward pass through text encoder
-
-        # augmentation
+        # Apply augmentations with consistent random state
         state = torch.get_rng_state()
         tgt_img = self.augmentation(original_img_pil, self.pixel_transform, state)
         tgt_guid_alignment = self.augmentation(alignment_img_pil, self.guid_transform, state)
         tgt_guid_depth = self.augmentation(depth_img_pil, self.guid_transform, state)
         tgt_guid_flame = self.augmentation(flame_img_pil, self.guid_transform, state)
-        tgt_guid = torch.cat([tgt_guid_alignment,tgt_guid_depth,tgt_guid_flame],dim=0)
+
+        # Concatenate guidance images
+        tgt_guid = torch.cat([tgt_guid_alignment, tgt_guid_depth, tgt_guid_flame], dim=0)
+
+        # Create sample dictionary
         sample = dict(
             tgt_img=tgt_img,
             tgt_guid=tgt_guid,
             input_ids=input_ids,
             attention_mask=attention_mask
         )
-        
+
         return sample

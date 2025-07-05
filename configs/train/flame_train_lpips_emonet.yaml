@@ -11,18 +11,18 @@ caption_column: "text"
 max_train_samples: null
 validation_prompts_original: "/ps/project/EmotionalFacialAnimation/data/affectnet/Manually_Annotated/Manually_Annotated_Images/1221/f4c723bc4c836911104c31257f96628ff5f2e9793bef4a882c37ae64.jpg"
 validation_prompts: ["Neutral, Person, youthful, fair skin, light brown hair, casual style, blue eyes, neutral expression, relaxed/contemplative, plaid shirt, casual attire, solid color background"]
-output_dir: "/fast/vfourel/StableFaceFinetune/250219-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-1024pics-4gpus" #sd-model-finetuned-l1-snr10-lr05 is the last one
-output_sample_image: "250219-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-1024pics-4gpus"
-demonstration_file: "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
+output_dir: "/fast/vfourel/StableFaceFinetune/250226-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-512pics-1gpus" #sd-model-finetuned-l1-snr10-lr05 is the last one
+output_sample_image: "250226-AllGuidances-sd-model-finetuned-l192_lpips08-val_aro03_exp02-snr08-lr5e6-320pixels-512pics-1gpus"
+demonstration_file: "/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/demonstration.json"
 cache_dir: null
 seed: null
 resolution: 224
 center_crop: false
 random_flip: false
-train_batch_size: 8
+train_batch_size: 4
 num_train_epochs: 10
 max_train_steps: null
-gradient_accumulation_steps: 32
+gradient_accumulation_steps: 128
 gradient_checkpointing: false
 learning_rate: 5e-6
 scale_lr: false
@@ -72,7 +72,8 @@ valence_loss_weight: 0.03
 arousal_loss_weight: 0.03
 expression_loss_weight: 0.02
 data: #modify by VF
-  train_bs: 8 
+  train_bs: 4 
+  balance_factor_emotions: 0.9
   image_json_path: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/processed_corpus_data_35k.json' # Your data root folder
   path_images_emotions: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/Manually_Annotated_Affectnet_PathsAndEmotions.csv'
   Depth_image_folder: '/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/DepthFaces_35k'

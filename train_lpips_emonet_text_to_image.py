@@ -628,7 +628,7 @@ def main(args):
         extra_region=None,
         bbox_crop=args.data.bbox_crop,
         bbox_resize_ratio=tuple(args.data.bbox_resize_ratio),
-        balance_factor = 1.0
+        balance_factor = args.data.balance_factor_emotions
     )
 
 
