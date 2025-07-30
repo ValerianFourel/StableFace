@@ -23,12 +23,27 @@ negative_prompt = "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, ren
 negative_prompt2 = "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime, mutated hands and fingers:1.4), (deformed, distorted, disfigured:1.3), poorly drawn, bad anatomy, wrong anatomy, extra limb, missing limb, floating limbs, disconnected limbs, mutation, mutated, ugly, disgusting, amputation"
 
 
-def create_triptych(original_path, generated_image, finetuned_image, caption, output_path):
+def create_triptych(original_path, generated_image, finetuned_image, caption, output_path,args):
     # Open the original image
-    original_image = Image.open(original_path)
-    
-    # Resize all images to have the same height
+
+    extensions = ['.jpg', '.jpeg', '.png', '.JPG', '.JPEG']
+    subfolder_and_name = os.path.join(os.path.dirname(original_path), os.path.basename(original_path))
     height = 512
+
+    found_image = False
+    for ext in extensions:
+        potential_path = os.path.join(args.original_images, subfolder_and_name + ext)
+        if os.path.exists(potential_path):
+            original_image = Image.open(potential_path)
+            original_image = original_image.resize((int(height * original_image.width / original_image.height), height))
+            found_image = True
+            break
+
+    if not found_image:
+        original_image = Image.new('RGB', (512, 512), color='black')
+
+    # Resize all images to have the same height
+
     original_image = original_image.resize((int(height * original_image.width / original_image.height), height))
     generated_image = generated_image.resize((512, 512))
     finetuned_image = finetuned_image.resize((512, 512))
@@ -50,78 +65,30 @@ def create_triptych(original_path, generated_image, finetuned_image, caption, ou
     # Save the triptych
     triptych.save(output_path)
 
-def inspect_model_file(file_path):
-    # Load the state dict
-    # Check if CUDA is available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    # Load the state dict
-    state_dict = torch.load(file_path, map_location=device)
-    # Check if it's an OrderedDict (typical for model state dicts)
-    if isinstance(state_dict, OrderedDict):
-        print("File contains a state dict (OrderedDict)")
-        
-        # Get basic info
-        num_keys = len(state_dict)
-        print(f"Number of keys: {num_keys}")
-        
-        # Print the first few keys and their tensor shapes
-        print("\nFirst 10 keys and their tensor shapes:")
-        for i, (key, tensor) in enumerate(state_dict.items()):
-            if i >= 10:
-                break
-            print(f"{key}: {tensor.shape}")
-        
-        # Get all unique top-level keys (assuming the format "layer.sublayer.weight")
-        top_level_keys = set(key.split('.')[0] for key in state_dict.keys())
-        print("\nTop-level keys (potential model components):")
-        pprint(list(top_level_keys))
-        
-    else:
-        print("File does not contain a standard PyTorch state dict")
-        print("Content type:", type(state_dict))
-        
-        # If it's a dict-like object, try to print its keys
-        if hasattr(state_dict, 'keys'):
-            print("\nKeys in the object:")
-            pprint(list(state_dict.keys()))
-        else:
-            print("Unable to inspect the contents further.")
 
 # Usage
 
 
 def load_guidance_encoder(cfg):
     # Define the path to the pre-trained weights
-    pretrained_path = "/ps/scratch/ps_shared/vfourel/ChampFace/final-sd-model-finetuned-l192_lpips08-snr08-lr56-1024pics_224res/checkpoint-176/flame_encoder/guidance_encoder_flame.pth"
-    
-    # Initialize the GuidanceEncoder
-    guidance_encoder_flame = GuidanceEncoder(guidance_embedding_channels=cfg.guidance_encoder_kwargs.guidance_embedding_channels,
-            guidance_input_channels=cfg.guidance_encoder_kwargs.guidance_input_channels,
-            block_out_channels=cfg.guidance_encoder_kwargs.block_out_channels,)
-    
-    # Load the pre-trained weights
-    state_dict = torch.load(pretrained_path, map_location=torch.device('cpu'))
-    
-    # Check if the loaded state_dict is wrapped (e.g., with DataParallel)
-    if "module." in list(state_dict.keys())[0]:
-        # Remove the "module." prefix
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-    
-    # Load the weights into the model
-    guidance_encoder_flame.load_state_dict(state_dict)
-    
-    # Move the model to the appropriate device (GPU if available)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    guidance_encoder_flame = guidance_encoder_flame.to(device)
-    
-    # Set the model to evaluation mode
-    guidance_encoder_flame.eval()
     guidance_encoder_group = dict()
+        # Move the model to the appropriate device (GPU if available)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     for guidance_type in cfg.data.guids:
-        guidance_encoder_group[guidance_type] = guidance_encoder_flame
+        guidance_encoder_group[guidance_type] = GuidanceEncoder(guidance_embedding_channels=cfg.guidance_encoder_kwargs.guidance_embedding_channels,
+            guidance_input_channels=cfg.guidance_encoder_kwargs.guidance_input_channels,
+            block_out_channels=cfg.guidance_encoder_kwargs.block_out_channels,)
+        state_dict_guidance_encoder = torch.load(cfg.pretrained_path_guidance_encoder[guidance_type], map_location=torch.device('cpu'))
+                        # Check if the loaded state_dict is wrapped (e.g., with DataParallel)
+        if "module." in list(state_dict_guidance_encoder.keys())[0]:
+                # Remove the "module." prefix
+            state_dict_guidance_encoder = {k.replace("module.", ""): v for k, v in state_dict_guidance_encoder.items()}
+            
+        guidance_encoder_group[guidance_type].load_state_dict(state_dict_guidance_encoder)
+        guidance_encoder_group[guidance_type].to(device)
+        guidance_encoder_group[guidance_type].eval()
+
     return guidance_encoder_group
 
 def load_models(args):
@@ -136,7 +103,7 @@ def load_models(args):
     reference_unet = UNet2DConditionModel.from_pretrained(args.finetuned_model, subfolder="unet")
     
     # Setup guidance encoder
-    guidance_encoder_flame = load_guidance_encoder(args)
+    guidance_encoders = load_guidance_encoder(args)
     
     # Create ReferenceAttentionControl
     reference_control_writer = ReferenceAttentionControl(
@@ -149,19 +116,16 @@ def load_models(args):
     model = ChampFlameModel(
             reference_unet,
             reference_control_writer,
-            guidance_encoder_flame,
+            guidance_encoders,
         )
-    return guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model
-
-def run_inference_ChampModel(args,negative_prompt=negative_prompt):
-    guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
-    demonstrationPaths = "/home/vfourel/FaceGPT/Data/FlameImagesAffectnet/demonstration.json"
+    return guidance_encoders, reference_unet, tokenizer, text_encoder, vae, model
 
 
 
-def inference_pipeline(args,negative_prompt=negative_prompt):
+
+def inference_pipeline(args):
     # Load models
-    guidance_encoder_flame, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
+    guidance_encoders, reference_unet, tokenizer, text_encoder, vae, model = load_models(args)
     
     # Set up pipeline
     scheduler = DDPMScheduler.from_pretrained(args.pretrained_model_name_or_path, subfolder="scheduler")
@@ -170,32 +134,14 @@ def inference_pipeline(args,negative_prompt=negative_prompt):
             text_encoder=text_encoder, # we have to 
             vae=vae,
             unet=reference_unet,
-            guidance_encoder_flame=guidance_encoder_flame,
+            guidance_encoders=guidance_encoders,
             revision=args.revision,
         )
     # Move to device
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     pipeline = pipeline.to(device)
     
-    
     return pipeline 
-
-    # # Run inference
-    # prompt = "Disgust, Man"
-    # negative_prompt = negative_prompt
-    # multi_guidance_lst = "Your multi-guidance list here"  # Adjust based on your model's requirements
-    
-    # with torch.no_grad():
-    #     image = pipeline(
-    #         prompt=prompt,
-    #         negative_prompt=negative_prompt,
-    #         multi_guidance_lst=multi_guidance_lst,
-    #         num_inference_steps=20,
-    #         generator=generator
-    #     ).images[0]
-    
-    # # Save or display the image
-    # return image
 
 
 def load_model_original_pipeline(model_id="SG161222/Realistic_Vision_V6.0_B1_noVAE", device="cuda"):
@@ -211,14 +157,16 @@ def load_model_original_pipeline(model_id="SG161222/Realistic_Vision_V6.0_B1_noV
     
     return pipeline
 
-def generate_image(prompt, pipeline, num_inference_steps=300, guidance_scale=9.0, negative_prompt=negative_prompt):
+def generate_image(prompt, pipeline, args, num_inference_steps=300, guidance_scale=9.0):
     # Generate an image from the prompt with an optional negative prompt
     # Set up generator for reproducibility
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     generator = torch.Generator(device=device).manual_seed(args.seed) if args.seed is not None else None
     with torch.no_grad():
         #prompt = "high detail, 4k, photorealistic" + prompt
         image = pipeline(prompt=prompt, 
-                      negative_prompt=negative_prompt, 
+                      negative_prompt=args.negative_prompt, 
                       num_inference_steps=num_inference_steps, 
                       guidance_scale=guidance_scale,
                        generator=generator).images[0]
@@ -229,39 +177,52 @@ def save_image(image, path="random.png"):
     image.save(path)
 
 def clean_string(value):
-    return value.replace("blurred", "").replace("grainy", "").replace("blurry", "").replace("low-quality", "high-quality").replace("background", "").strip()
+    return value.replace("blurred", "").replace("grainy", "").replace("blurry", "").replace("low-quality", "high-quality").strip()
 
 def main(args):
+ 
+    # Load the pipeline
+    pipeline_original = load_model_original_pipeline()
 
-    test_folder = 'test_folder3'
-    os.makedirs(test_folder, exist_ok=True)
-    i = 0
-    pipeline = inference_pipeline(args,negative_prompt=negative_prompt)
-    while True:
-        prompt = input("Enter a prompt (or 'quit' to exit): ")
-        
-        if prompt.lower() == 'quit':
-            break
-        
-        image_finetune = generate_image(prompt, pipeline)
+    pipeline = inference_pipeline(args)
 
-        # Create the output filename
-        output_filename = f"{test_folder}/{i:05d}.png"
-        
-        # Save the image
-        image_finetune.save(output_filename)
-        
-        print(f"Image generated and saved as '{output_filename}'")
-        
-        i += 1
+        # Path to your JSON file
+    json_file_path = args.validation_dict
 
-    print("Image generation complete. All images have been saved in the 'test' folder.")
+    # Read the JSON file
+    with open(json_file_path, 'r') as file:
+        data = json.load(file)
+
+    # Create validation folder if it doesn't exist
+    folder = args.output_folder
+    os.makedirs(folder, exist_ok=True)
+
+    for i, (key, value) in enumerate(data.items(), start=1):
+        prompt = value[0]
+                # Split the key into subfolder and filename
+        subfolder, filename = os.path.split(key)
+
+        # Create the complete output path
+        output_path = os.path.join(folder, subfolder)
+        os.makedirs(output_path, exist_ok=True)
+        # Generate the images
+        prompt  = clean_string(prompt)
+        image_original = generate_image(prompt, pipeline_original,args)
+        image_finetune = generate_image(prompt, pipeline,args)
+
+        # Create output filename with .png extension
+        output_filename = os.path.join(output_path, f"{filename}.png")
+        create_triptych(key, image_original, image_finetune, prompt, output_filename,args)
+
+        print(f"Triptych generated and saved as '{output_filename}'")
+
+    print("All triptychs have been generated and saved in the 'validation' folder.")
 
 if __name__ == "__main__":
     import shutil
     
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="./configs/inference/flame_inference.yaml")
+    parser.add_argument("--config", type=str, default="./configs/inference/flame_emonet_validation.yaml")
     args = parser.parse_args()
 
     if args.config.endswith(".yaml"):

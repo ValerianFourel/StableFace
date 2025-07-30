@@ -3,8 +3,8 @@ finetuned_model: "/fast/vfourel/StableFaceFinetune/AllGuidances_2-sd-model-finet
 revision: null
 seed: 42
 model_original: "SG161222/Realistic_Vision_V6.0_B1_noVAE"
-validation_dict: "/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/6k_validation_set_matched_prompts.json"
-output_folder: "/home/vfourel/FaceGPT/Data/StableFaceOutputValidationImages/1029_AllGuidances-sd-model-finetuned-l192_lpips08-val_aro01_exp02-snr08-lr5e6-320pixels-256pics_checkpoint-336"
+validation_dict:  "/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/EmocaProcessed_38k/Modified_Corpus_300_validation.json" # "/fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/6k_validation_set_matched_prompts.json"
+output_folder: "/home/vfourel/FaceGPT/StableFace/output" # "/home/vfourel/FaceGPT/Data/StableFaceOutputValidationImages/1029_AllGuidances-sd-model-finetuned-l192_lpips08-val_aro01_exp02-snr08-lr5e6-320pixels-256pics_checkpoint-336"
 negative_prompt:  "(deformed iris, deformed pupils, semi-realistic, cgi, 3d, render, sketch, cartoon, drawing, anime:1.4), text, close up, cropped, out of frame, worst quality, low quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, extra fingers, mutated hands, poorly drawn hands, poorly drawn face, mutation, deformed, blurry, dehydrated, bad anatomy, bad proportions, extra limbs, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck"
 pretrained_path_guidance_encoder:
  "flame": "/fast/vfourel/StableFaceFinetune/AllGuidances_2-sd-model-finetuned-l192_lpips08-emonet08-snr08-lr56-1024pics_224res/checkpoint-176/guidance_encoder/flame_encoder_pytorch_model.bin"
