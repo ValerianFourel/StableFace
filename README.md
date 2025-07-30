@@ -1,12 +1,25 @@
-<details><summary>Thinking</summary>
-
-**Updating README with Commands**
-
-The user wants to integrate specific command lines into their README. They’ve already rewritten the README, and now I need to include two commands: one for validation and another for multi-GPU training. I should incorporate these into relevant sections like Quick Start and Validation or Evaluation, while adhering to formatting guidelines. This means I'll keep earlier sections intact and structure the new content clearly, perhaps creating a new "Quick Start" section for both single and multi-GPU commands and a Validation section.
-
-</details>
 
 # StableFaceEmotion
+
+<p align="center">
+  <!-- Original ground-truth face -->
+  <img src="assets/header_original.png"  width="30%" alt="Original face"/>
+
+  <!-- Baseline Stable-Diffusion (Realistic-Vision) -->
+  <img src="assets/header_baseline.png"  width="30%" alt="Baseline generation"/>
+
+  <!-- StableFaceEmotion finetuned output -->
+  <img src="assets/header_finetuned.png" width="30%" alt="Finetuned generation"/>
+</p>
+
+<p align="center">
+  <b>Left → Right:</b> Original AffectNet photo &nbsp;•&nbsp;
+  Baseline Realistic-Vision output &nbsp;•&nbsp;
+  <span style="white-space:nowrap;">StableFaceEmotion</span> finetuned output
+</p>
+
+<p>
+Description: Happy, Close-up woman's face, smiling, long dark hair, fair skin, youthful appearance, light-colored eyes, well-defined eyebrows, straight nose, full lips, makeup, softened lighting, neutral background, facial features focused </p>
 
 Fine-tune Stable Diffusion 1.5 to generate **photorealistic faces with controllable emotions**.  
 The project extends the checkpoint ```SG161222/Realistic_Vision_V6.0_B1_noVAE``` with
@@ -137,13 +150,6 @@ All encoded by a small transformer → preserves identity & head pose while chan
 
 ---
 
-<details><summary>Thinking</summary>
-
-**Updating README structure**
-
-The user wants to add a section to the README explaining how to use the inference file. I need to keep the current structure and numbering while incorporating this new information. Since the README currently ends with "License," I’ll add a new section for "Inference," shifting the later sections accordingly. I’ll include a brief explanation of the script, required config YAML, its arguments, and an example command, plus a note about negative prompts. Let's get that organized!
-
-</details>
 
 ### 8 · Inference (triptych comparison)
 
@@ -197,15 +203,7 @@ python validation_finetuning_Emotions.py \
 
 The script reports FID, DISTS and EmoNet Top-k accuracy.
 
----
 
-<details><summary>Thinking</summary>
-
-**Updating README for Images**
-
-The user wants to embed three of five triptych images in the README to illustrate results. I need to update the file to include those images, using filenames from the assets folder. I'll add markdown image tags that reference the file paths and provide a snippet they can easily copy into the README. I'll choose the first three images alphabetically and add alt text and descriptions. After adjusting section numbers, I’ll make sure everything flows well. Let's get to crafting this update!
-
-</details>
 
 #### 7.1 · Qualitative examples
 
@@ -232,9 +230,9 @@ These visuals highlight sharper textures and noticeably improved emotion fidelit
 
 Largest gains: anger, disgust, surprise.
 
-<img src="assets/80145ed0d64b0194044e028537d26b7677b72bf1942aa03d3db40f14.png" width="250"/> | <img src="assets/radar_orig.png" width="250"/>
+ <img src="assets/radar_orig.png" width="250"/>
 
-<img src="assets/80145ed0d64b0194044e028537d26b7677b72bf1942aa03d3db40f14.png" width="250"/> | <img src="assets/overall_bars.png" width="250"/>
+ <img src="assets/overall_bars.png" width="250"/>
 ---
 
 ## 9 · Pre-trained weights & demo
