@@ -258,5 +258,26 @@ Largest gains: anger, disgust, surprise.
 ## 11 · License
 
 Apache 2.0 for code.  
-AffectNet images follow their original license.
 
+
+### Relevant links:
+Weights:
+https://huggingface.co/ValerianFourel/RealisticEmotionStableDiffusion
+
+HuggingFace Space:
+https://huggingface.co/spaces/ValerianFourel/StableFaceEmotion
+
+AffectNet Dataset:
+https://huggingface.co/datasets/chitradrishti/AffectNet
+
+Original MiniGPT-v2 codebase:
+https://github.com/Vision-CAIR/MiniGPT-4
+
+Medium Article:
+https://medium.com/@valerian.fourel/stableface-a-stable-diffusion-model-for-faces-with-guidance-on-emotions-4ea9b5dfa29a
+
+Inspired by with Description generated using LLaVA-1.6:
+https://github.com/haotian-liu/LLaVA
+
+Emoca:
+https://github.com/radekd91/emoca
